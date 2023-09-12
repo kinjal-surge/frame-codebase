@@ -172,10 +172,19 @@ NETWORK_CORE_C_FILES += \
 	nrfx/drivers/src/nrfx_rtc.c \
 	nrfx/drivers/src/nrfx_spim.c \
 	nrfx/drivers/src/nrfx_twim.c \
+	nrfx/drivers/src/nrfx_rng.c \
+	nrfx/drivers/src/nrfx_systick.c \
+	network_core/rng_helper.c \
 	nrfx/mdk/gcc_startup_nrf5340_network.S \
 	nrfx/mdk/system_nrf5340_network.c \
 	segger/SEGGER_RTT_printf.c \
 	segger/SEGGER_RTT.c \
+
+
+NETWORK_CORE_C_FILES += \
+    network_core/sdk-nrfxlib/softdevice_controller/lib/cortex-m33+nodsp/soft-float/libsoftdevice_controller_multirole.a \
+	network_core/sdk-nrfxlib/mpsl/lib/cortex-m33+nodsp/soft-float/libmpsl.a \
+	network_core/sdk-nrfxlib/mpsl/fem/common/lib/cortex-m33+nodsp/soft-float/libmpsl_fem_common.a \
 
 FROZEN_PYTHON_FILES += \
 	network_core/micropython_modules/test.py \
@@ -201,6 +210,8 @@ NETWORK_CORE_FLAGS += \
 	-Inetwork_core/micropython \
 	-Inetwork_core/micropython_generated \
 	-Inetwork_core/micropython_modules \
+	-Inetwork_core/sdk-nrfxlib/softdevice_controller/include \
+	-Inetwork_core/sdk-nrfxlib/mpsl/include \
 
 # Warnings
 SHARED_FLAGS += \

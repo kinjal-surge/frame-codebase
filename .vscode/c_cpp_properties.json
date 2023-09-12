@@ -17,6 +17,8 @@
                 "nrfx/hal",
                 "nrfx/mdk",
                 "nrfx/soc",
+                "network_core/sdk-nrfxlib/softdevice_controller/include",
+                "network_core/sdk-nrfxlib/mpsl/include",
                 "segger",
             ],
             "defines": [

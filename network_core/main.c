@@ -33,7 +33,16 @@
 #include "nrfx_spim.h"
 #include "nrfx_twim.h"
 #include "pinout.h"
+// for bluetooth
+#include "sdc.h"
+#include "sdc_hci.h"
+#include "sdc_soc.h"
+#include "rng_helper.h"
+#include "sdc_soc.h"
+#include "nrfx_systick.h"
+#include "mpsl.h"
 
+#define LOW_PRIORITY 0x0f
 static const nrfx_rtc_t rtc_instance = NRFX_RTC_INSTANCE(0);
 static const nrfx_spim_t spi_instance = NRFX_SPIM_INSTANCE(0);
 static const nrfx_twim_t i2c_instance = NRFX_TWIM_INSTANCE(0);
@@ -46,9 +55,11 @@ static const uint8_t PMIC_I2C_ADDRESS = 0x48;
 static bool not_real_hardware = false;
 
 static bool prevent_sleep = true;
-
+void setup_bluetooth(void);
 static void unused_rtc_event_handler(nrfx_rtc_int_type_t int_type) {}
-
+volatile bool mpsl_event_pending = false;
+volatile uint8_t rng = 0;
+static __aligned(8) uint8_t sdc_mem[8000];
 typedef struct i2c_response_t
 {
     bool fail;
@@ -475,8 +486,92 @@ int main(void)
 
     setup_network_core();
 
+    setup_bluetooth();
     while (1)
     {
         run_micropython();
     }
+}
+
+// A fault handler function that prints the error code and halts the execution
+static void my_fault_handler(const char *file, const uint32_t line)
+{
+    NRFX_LOG("SoftDevice Controller fault: file=%s, line=%lu\n", file, line);
+    for (;;)
+    {
+    }
+}
+
+static void mpsl_assert_handler(const char *const file, const uint32_t line)
+{
+    NRFX_LOG("mpsl_assert_error: %s:%d", file, line);
+};
+
+static void sdc_callback()
+{
+    NRFX_LOG("sdc_callback called");
+}
+
+void setup_bluetooth(void)
+{
+    nrfx_systick_init();
+
+    sdc_cfg_t cfg;
+    cfg.peripheral_count.count = 1;
+    cfg.central_count.count = 0;
+    cfg.buffer_cfg.tx_packet_size = 27;
+    cfg.buffer_cfg.rx_packet_size = 27;
+    cfg.buffer_cfg.tx_packet_count = 3;
+    cfg.buffer_cfg.rx_packet_count = 2;
+    cfg.adv_buffer_cfg.max_adv_data = 31;
+    cfg.adv_count.count = 1;
+    cfg.event_length.event_length_us = 7500;
+    // MPSL initialization
+    {
+        // NRFX_IRQ_PRIORITY_SET(SWI1_IRQn, LOW_PRIORITY);
+        // NRFX_IRQ_ENABLE(SWI1_IRQn);
+        // NRFX_IRQ_PRIORITY_SET(RTC0_IRQn, 0);
+        // NRFX_IRQ_ENABLE(RTC0_IRQn);
+        // NRFX_IRQ_PRIORITY_SET(RADIO_IRQn, 0);
+        // NRFX_IRQ_ENABLE(RADIO_IRQn);
+        // NRFX_IRQ_PRIORITY_SET(TIMER0_IRQn, 0);
+        // NRFX_IRQ_ENABLE(TIMER0_IRQn);
+        // NRFX_IRQ_PRIORITY_SET(TIMER1_IRQn, 0);
+        // NRFX_IRQ_ENABLE(TIMER1_IRQn);
+
+        mpsl_clock_lfclk_cfg_t mpsl_clock_config = {
+            .source = MPSL_CLOCK_LF_SRC_SYNTH,
+            .accuracy_ppm = MPSL_DEFAULT_CLOCK_ACCURACY_PPM,
+            .rc_ctiv = 0,
+            .rc_temp_ctiv = 0,
+            .skip_wait_lfclk_started = false};
+
+        app_err(mpsl_init(&mpsl_clock_config, SWI1_IRQn, mpsl_assert_handler));
+    }
+
+    nrfx_rng_config_t rng_config = NRFX_RNG_DEFAULT_CONFIG;
+    app_err(nrfx_rng_init(&rng_config, rng_evt_handler));
+
+    // nrfx_rng_start();
+    sdc_rand_source_t my_rand_source = {
+        .rand_prio_low_get = rand_get,
+        .rand_prio_high_get = rand_get,
+        .rand_poll = rand_poll};
+
+    app_err(sdc_init(&my_fault_handler));
+    app_err(sdc_rand_source_register(&my_rand_source));
+    app_err(sdc_support_adv());
+    app_err(sdc_support_peripheral());
+    app_err(sdc_support_phy_update_peripheral());
+    app_err(sdc_support_le_2m_phy());
+
+    sdc_cfg_set(SDC_DEFAULT_RESOURCE_CFG_TAG, SDC_CFG_TYPE_CENTRAL_COUNT, &cfg);
+    sdc_cfg_set(SDC_DEFAULT_RESOURCE_CFG_TAG, SDC_CFG_TYPE_ADV_COUNT, &cfg);
+    sdc_cfg_set(SDC_DEFAULT_RESOURCE_CFG_TAG, SDC_CFG_TYPE_PERIPHERAL_COUNT, &cfg);
+    // sdc_cfg_set(SDC_DEFAULT_RESOURCE_CFG_TAG, SDC_CFG_TYPE_EVENT_LENGTH, &cfg);
+    // sdc_cfg_set(SDC_DEFAULT_RESOURCE_CFG_TAG, SDC_CFG_TYPE_BUFFER_CFG, &cfg);
+    NRFX_LOG("config set");
+    app_err(sdc_enable(sdc_callback, sdc_mem));
+    NRFX_LOG("BLE application setup");
+    return;
 }
