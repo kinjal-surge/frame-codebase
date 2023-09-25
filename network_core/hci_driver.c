@@ -520,7 +520,8 @@ int32_t ble_init(void)
     }
 
     err = sdc_enable(receive_signal_raise, sdc_mempool);
-    hci_driver_send() if (err)
+    hci_driver_send();
+    if (err)
     {
         return err;
     }
