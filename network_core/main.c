@@ -490,36 +490,7 @@ int main(void)
     NRFX_LOG("MicroPython on Frame - " BUILD_VERSION " (" GIT_COMMIT ")");
 
     setup_network_core();
-
-    nrfx_systick_init();
-    sdc_cfg_t cfg;
-
-    // MPSL initialization
-
-    NRFX_IRQ_PRIORITY_SET(SWI1_IRQn, LOW_PRIORITY);
-    NRFX_IRQ_ENABLE(SWI1_IRQn);
-    NRFX_IRQ_PRIORITY_SET(RTC0_IRQn, 0);
-    NRFX_IRQ_ENABLE(RTC0_IRQn);
-    NRFX_IRQ_PRIORITY_SET(RADIO_IRQn, 0);
-    NRFX_IRQ_ENABLE(RADIO_IRQn);
-    NRFX_IRQ_PRIORITY_SET(TIMER0_IRQn, 0);
-    NRFX_IRQ_ENABLE(TIMER0_IRQn);
-    NRFX_IRQ_PRIORITY_SET(TIMER1_IRQn, 0);
-
-    NRFX_IRQ_ENABLE(TIMER1_IRQn);
-    mpsl_clock_lfclk_cfg_t mpsl_clock_config = {
-        .source = MPSL_CLOCK_LF_SRC_SYNTH,
-        .accuracy_ppm = MPSL_DEFAULT_CLOCK_ACCURACY_PPM,
-        .rc_ctiv = 0,
-        .rc_temp_ctiv = 0,
-        .skip_wait_lfclk_started = MPSL_DEFAULT_SKIP_WAIT_LFCLK_STARTED};
-
-    checkError(mpsl_init(&mpsl_clock_config, SWI1_IRQn, mpsl_assert_handler));
-
-    nrfx_rng_config_t rng_config = NRFX_RNG_DEFAULT_CONFIG;
-    app_err(nrfx_rng_init(&rng_config, rng_evt_handler));
-
-    nrfx_rng_start();
+    setup_bluetooth();
     while (1)
     {
         run_micropython();
@@ -542,11 +513,27 @@ static void mpsl_assert_handler(const char *const file, const uint32_t line)
 
 static inline void sdc_callback()
 {
+    bool check_again;
     uint8_t hci_buffer[HCI_MSG_BUFFER_MAX_SIZE];
     sdc_hci_msg_type_t msg_type;
     int32_t err_code;
-    msg_type = SDC_HCI_MSG_TYPE_EVT;
-    err_code = sdc_hci_get(hci_buffer, &msg_type);
+    do
+    {
+        check_again = false;
+        err_code = sdc_hci_get(hci_buffer, &msg_type);
+        if (err_code == 0)
+        {
+            if (msg_type == SDC_HCI_MSG_TYPE_EVT)
+            {
+                check_again = true;
+            }
+
+            if (msg_type == SDC_HCI_MSG_TYPE_DATA)
+            {
+                check_again = true;
+            }
+        }
+    } while (check_again);
     NRFX_LOG("sdc_get: %d", err_code);
     if (err_code == 0)
     {
