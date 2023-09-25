@@ -32,7 +32,7 @@
 #define nrfx_gpiote_irq_handler GPIOTE_IRQHandler
 #define nrfx_ipc_irq_handler IPC_IRQHandler
 #define nrfx_rtc_0_irq_handler RTC0_IRQHandler
-
+#define nrfx_rng_irq_handler RNG_IRQHandler
 #define NRFX_ASSERT(expression) \
     do                          \
     {                           \

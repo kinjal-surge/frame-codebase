@@ -50,6 +50,7 @@ static rng_value_t rb_pop()
 
 void rng_evt_handler(uint8_t rng_data)
 {
+    // NRFX_LOG("it works");
     rb_push(rng_data);
 }
 

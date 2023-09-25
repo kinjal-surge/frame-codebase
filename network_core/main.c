@@ -39,6 +39,11 @@
 #include "sdc_soc.h"
 #include "rng_helper.h"
 #include "sdc_soc.h"
+#include "sdc_hci_cmd_controller_baseband.h"
+#include "sdc_hci_cmd_info_params.h"
+#include "sdc_hci_cmd_le.h"
+#include "sdc_hci_cmd_link_control.h"
+#include "sdc_hci_cmd_status_params.h"
 #include "nrfx_systick.h"
 #include "mpsl.h"
 #include "nrf_errno.h"
@@ -59,7 +64,7 @@ void setup_bluetooth(void);
 static void unused_rtc_event_handler(nrfx_rtc_int_type_t int_type) {}
 volatile bool mpsl_event_pending = false;
 volatile uint8_t rng = 0;
-static __aligned(8) uint8_t sdc_mem[8000];
+static __aligned(8) uint8_t sdc_mem[2000];
 typedef struct i2c_response_t
 {
     bool fail;
@@ -486,7 +491,35 @@ int main(void)
 
     setup_network_core();
 
-    setup_bluetooth();
+    nrfx_systick_init();
+    sdc_cfg_t cfg;
+
+    // MPSL initialization
+
+    NRFX_IRQ_PRIORITY_SET(SWI1_IRQn, LOW_PRIORITY);
+    NRFX_IRQ_ENABLE(SWI1_IRQn);
+    NRFX_IRQ_PRIORITY_SET(RTC0_IRQn, 0);
+    NRFX_IRQ_ENABLE(RTC0_IRQn);
+    NRFX_IRQ_PRIORITY_SET(RADIO_IRQn, 0);
+    NRFX_IRQ_ENABLE(RADIO_IRQn);
+    NRFX_IRQ_PRIORITY_SET(TIMER0_IRQn, 0);
+    NRFX_IRQ_ENABLE(TIMER0_IRQn);
+    NRFX_IRQ_PRIORITY_SET(TIMER1_IRQn, 0);
+
+    NRFX_IRQ_ENABLE(TIMER1_IRQn);
+    mpsl_clock_lfclk_cfg_t mpsl_clock_config = {
+        .source = MPSL_CLOCK_LF_SRC_SYNTH,
+        .accuracy_ppm = MPSL_DEFAULT_CLOCK_ACCURACY_PPM,
+        .rc_ctiv = 0,
+        .rc_temp_ctiv = 0,
+        .skip_wait_lfclk_started = MPSL_DEFAULT_SKIP_WAIT_LFCLK_STARTED};
+
+    checkError(mpsl_init(&mpsl_clock_config, SWI1_IRQn, mpsl_assert_handler));
+
+    nrfx_rng_config_t rng_config = NRFX_RNG_DEFAULT_CONFIG;
+    app_err(nrfx_rng_init(&rng_config, rng_evt_handler));
+
+    nrfx_rng_start();
     while (1)
     {
         run_micropython();
@@ -507,54 +540,89 @@ static void mpsl_assert_handler(const char *const file, const uint32_t line)
     NRFX_LOG("mpsl_assert_error: %s:%d", file, line);
 };
 
-static void sdc_callback()
+static inline void sdc_callback()
 {
-    NRFX_LOG("sdc_callback called");
+    uint8_t hci_buffer[HCI_MSG_BUFFER_MAX_SIZE];
+    sdc_hci_msg_type_t msg_type;
+    int32_t err_code;
+    msg_type = SDC_HCI_MSG_TYPE_EVT;
+    err_code = sdc_hci_get(hci_buffer, &msg_type);
+    NRFX_LOG("sdc_get: %d", err_code);
+    if (err_code == 0)
+    {
+        // A packet was retrieved successfully
+        switch (hci_buffer[0])
+        {
+        case 0x01:
+            // Handle HCI Command packet
+            break;
+        case 0x02:
+            // Handle HCI ACL Data packet
+            break;
+        case 0x03:
+            // Handle HCI Synchronous Data packet
+            break;
+        case 0x04:
+            // Handle HCI Event packet
+            break;
+        case 0x05:
+            // Handle HCI ISO Data packet
+            break;
+        default:
+            // Invalid PI field
+            break;
+        }
+    }
+    else if (err_code == -NRF_EAGAIN)
+    {
+        // No packets available
+    }
+    else if (err_code == -NRF_EINVAL)
+    {
+        // Invalid argument provided
+    }
+    else
+    {
+        // Unexpected error code
+    }
+    NRFX_LOG("sdc_callback called %d", err_code);
 }
 void checkError(int32_t ret_code)
 {
-    NRFX_LOG("Response %d", ret_code);
-    if (ret_code == -NRF_EINVAL || ret_code == -NRF_EPERM || ret_code == -NRF_EOPNOTSUPP)
+    NRFX_LOG("Response: %d", ret_code);
+    if (ret_code == -NRF_EINVAL || ret_code == -NRF_EPERM || ret_code == -NRF_EOPNOTSUPP || ret_code == -NRF_ENOMEM)
     {
         app_err(ret_code);
     }
     return;
 }
+
 void setup_bluetooth(void)
 {
     nrfx_systick_init();
     sdc_cfg_t cfg;
-    cfg.peripheral_count.count = 1;
-    cfg.central_count.count = 0;
-    cfg.buffer_cfg.tx_packet_size = 27;
-    cfg.buffer_cfg.rx_packet_size = 27;
-    cfg.buffer_cfg.tx_packet_count = 2;
-    cfg.buffer_cfg.rx_packet_count = 2;
-    cfg.adv_buffer_cfg.max_adv_data = 31;
-    cfg.adv_count.count = 1;
-    cfg.event_length.event_length_us = 7500;
+
     // MPSL initialization
-    {
 
-        NRFX_IRQ_PRIORITY_SET(SWI1_IRQn, LOW_PRIORITY);
-        NRFX_IRQ_ENABLE(SWI1_IRQn);
-        NRFX_IRQ_PRIORITY_SET(RTC0_IRQn, 0);
-        NRFX_IRQ_ENABLE(RTC0_IRQn);
-        NRFX_IRQ_PRIORITY_SET(RADIO_IRQn, 0);
-        NRFX_IRQ_ENABLE(RADIO_IRQn);
-        NRFX_IRQ_PRIORITY_SET(TIMER0_IRQn, 0);
-        NRFX_IRQ_ENABLE(TIMER0_IRQn);
-        NRFX_IRQ_PRIORITY_SET(TIMER1_IRQn, 0);
-        NRFX_IRQ_ENABLE(TIMER1_IRQn);
-        mpsl_clock_lfclk_cfg_t mpsl_clock_config = {
-            .source = MPSL_CLOCK_LF_SRC_SYNTH,
-            .accuracy_ppm = MPSL_DEFAULT_CLOCK_ACCURACY_PPM,
-            .rc_ctiv = 0,
-            .rc_temp_ctiv = 0,
-            .skip_wait_lfclk_started = false};
+    NRFX_IRQ_PRIORITY_SET(SWI1_IRQn, LOW_PRIORITY);
+    NRFX_IRQ_ENABLE(SWI1_IRQn);
+    NRFX_IRQ_PRIORITY_SET(RTC0_IRQn, 0);
+    NRFX_IRQ_ENABLE(RTC0_IRQn);
+    NRFX_IRQ_PRIORITY_SET(RADIO_IRQn, 0);
+    NRFX_IRQ_ENABLE(RADIO_IRQn);
+    NRFX_IRQ_PRIORITY_SET(TIMER0_IRQn, 0);
+    NRFX_IRQ_ENABLE(TIMER0_IRQn);
+    NRFX_IRQ_PRIORITY_SET(TIMER1_IRQn, 0);
 
-        checkError(mpsl_init(&mpsl_clock_config, SWI1_IRQn, mpsl_assert_handler));
-    }
+    NRFX_IRQ_ENABLE(TIMER1_IRQn);
+    mpsl_clock_lfclk_cfg_t mpsl_clock_config = {
+        .source = MPSL_CLOCK_LF_SRC_SYNTH,
+        .accuracy_ppm = MPSL_DEFAULT_CLOCK_ACCURACY_PPM,
+        .rc_ctiv = 0,
+        .rc_temp_ctiv = 0,
+        .skip_wait_lfclk_started = MPSL_DEFAULT_SKIP_WAIT_LFCLK_STARTED};
+
+    checkError(mpsl_init(&mpsl_clock_config, SWI1_IRQn, mpsl_assert_handler));
 
     nrfx_rng_config_t rng_config = NRFX_RNG_DEFAULT_CONFIG;
     app_err(nrfx_rng_init(&rng_config, rng_evt_handler));
@@ -567,18 +635,72 @@ void setup_bluetooth(void)
 
     checkError(sdc_init(&my_fault_handler));
     sdc_rand_source_register(&my_rand_source);
+    sdc_default_tx_power_set(0);
     checkError(sdc_support_adv());
     checkError(sdc_support_peripheral());
+    checkError(sdc_support_dle_peripheral());
     checkError(sdc_support_phy_update_peripheral());
     checkError(sdc_support_le_2m_phy());
 
-    sdc_cfg_set(SDC_DEFAULT_RESOURCE_CFG_TAG, SDC_CFG_TYPE_CENTRAL_COUNT, &cfg);
-    sdc_cfg_set(SDC_DEFAULT_RESOURCE_CFG_TAG, SDC_CFG_TYPE_ADV_COUNT, &cfg);
-    sdc_cfg_set(SDC_DEFAULT_RESOURCE_CFG_TAG, SDC_CFG_TYPE_PERIPHERAL_COUNT, &cfg);
-    // sdc_cfg_set(SDC_DEFAULT_RESOURCE_CFG_TAG, SDC_CFG_TYPE_EVENT_LENGTH, &cfg);
-    // sdc_cfg_set(SDC_DEFAULT_RESOURCE_CFG_TAG, SDC_CFG_TYPE_BUFFER_CFG, &cfg);
-    NRFX_LOG("config set");
+    cfg.central_count.count = 0;
+    checkError(sdc_cfg_set(SDC_DEFAULT_RESOURCE_CFG_TAG, SDC_CFG_TYPE_CENTRAL_COUNT, &cfg));
+    cfg.adv_count.count = SDC_DEFAULT_ADV_COUNT;
+    checkError(sdc_cfg_set(SDC_DEFAULT_RESOURCE_CFG_TAG, SDC_CFG_TYPE_ADV_COUNT, &cfg));
+    cfg.peripheral_count.count = SDC_DEFAULT_PERIPHERAL_COUNT;
+    checkError(sdc_cfg_set(SDC_DEFAULT_RESOURCE_CFG_TAG, SDC_CFG_TYPE_PERIPHERAL_COUNT, &cfg));
+    cfg.event_length.event_length_us = SDC_DEFAULT_EVENT_LENGTH_US;
+    checkError(sdc_cfg_set(SDC_DEFAULT_RESOURCE_CFG_TAG, SDC_CFG_TYPE_EVENT_LENGTH, &cfg));
+    cfg.buffer_cfg.tx_packet_size = SDC_DEFAULT_TX_PACKET_SIZE;
+    cfg.buffer_cfg.rx_packet_size = SDC_DEFAULT_RX_PACKET_SIZE;
+    cfg.buffer_cfg.tx_packet_count = SDC_DEFAULT_TX_PACKET_COUNT;
+    cfg.buffer_cfg.rx_packet_count = SDC_DEFAULT_RX_PACKET_COUNT;
+
+    checkError(sdc_cfg_set(SDC_DEFAULT_RESOURCE_CFG_TAG, SDC_CFG_TYPE_BUFFER_CFG, &cfg));
+    cfg.adv_buffer_cfg.max_adv_data = SDC_DEFAULT_ADV_BUF_SIZE;
+    checkError(sdc_cfg_set(SDC_DEFAULT_RESOURCE_CFG_TAG, SDC_CFG_TYPE_ADV_BUFFER_CFG, &cfg));
+
     checkError(sdc_enable(sdc_callback, sdc_mem));
-    NRFX_LOG("BLE application setup");
+    checkError(sdc_hci_cmd_cb_reset());
+    sdc_callback();
+    sdc_hci_cmd_cb_set_event_mask_t evt_mask = {.raw = {0xde, 0x0b, 0x00, 0x00, 0x00, 0x80, 0x00, 0x00}};
+    checkError(sdc_hci_cmd_cb_set_event_mask(&evt_mask));
+    sdc_callback();
+    sdc_hci_cmd_le_set_random_address_t rand_address = {.random_address = {0xad, 0x4b, 0xe2, 0x43, 0x2d, 0xc0}};
+    checkError(sdc_hci_cmd_le_set_random_address(&rand_address));
+    sdc_callback();
+    sdc_hci_cmd_le_set_adv_params_t adv_param = {
+        .adv_interval_min = 0x00a0,
+        .adv_interval_max = 0x00f0,
+        .adv_type = 0x00,
+        .own_address_type = 0x01,
+        .peer_address_type = 0x00,
+        .peer_address = {0, 0, 0, 0, 0, 0},
+        .adv_channel_map = 0x07,
+        .adv_filter_policy = 0x00};
+    checkError(sdc_hci_cmd_le_set_adv_params(&adv_param));
+    sdc_callback();
+    sdc_hci_cmd_le_set_adv_data_t adv_data = {
+        .adv_data = {
+            0x0b, 0x02, 0x01, 0x06, 0x07, 0x03, 0x0d, 0x18,
+            0x0f, 0x18, 0x0a, 0x18, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
+        .adv_data_length = 31};
+    checkError(sdc_hci_cmd_le_set_adv_data(&adv_data));
+    sdc_callback();
+    sdc_hci_cmd_le_set_scan_response_data_t scan_response = {
+        .scan_response_data = {
+            0x19, 0x18, 0x09, 0x5a, 0x65, 0x70, 0x68, 0x79,
+            0x72, 0x20, 0x48, 0x65, 0x61, 0x72, 0x74, 0x72,
+            0x61, 0x74, 0x65, 0x20, 0x53, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
+        .scan_response_data_length = 31};
+    checkError(sdc_hci_cmd_le_set_scan_response_data(&scan_response));
+    sdc_callback();
+    sdc_hci_cmd_le_set_adv_enable_t adv_enable = {.adv_enable = 0x01};
+
+    checkError(sdc_hci_cmd_le_set_adv_enable(&adv_enable));
+    sdc_callback();
+    NRFX_LOG("BLE  setup done");
     return;
 }
