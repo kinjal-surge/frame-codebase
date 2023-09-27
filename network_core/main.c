@@ -588,19 +588,19 @@ static inline void sdc_callback()
     }
     NRFX_LOG("sdc_callback called %d", err_code);
 }
-static void mpsl_irq_disable(void)
-{
-    NRFX_IRQ_DISABLE(TIMER0_IRQn);
-    NRFX_IRQ_DISABLE(TIMER1_IRQn);
-    NRFX_IRQ_DISABLE(RTC0_IRQn);
-    NRFX_IRQ_DISABLE(RADIO_IRQn);
-    NRFX_IRQ_DISABLE(SWI0_IRQn);
-}
+// static void mpsl_irq_disable(void)
+// {
+//     NRFX_IRQ_DISABLE(TIMER0_IRQn);
+//     NRFX_IRQ_DISABLE(TIMER1_IRQn);
+//     NRFX_IRQ_DISABLE(RTC0_IRQn);
+//     NRFX_IRQ_DISABLE(RADIO_IRQn);
+//     NRFX_IRQ_DISABLE(SWI0_IRQn);
+// }
 
 static void mpsl_irq_connect(void)
 {
     /* Ensure IRQs are disabled before attaching. */
-    mpsl_irq_disable();
+    // mpsl_irq_disable();
     NRFX_IRQ_PRIORITY_SET(SWI0_IRQn, LOW_PRIORITY);
     NRFX_IRQ_PRIORITY_SET(RTC0_IRQn, MPSL_HIGH_IRQ_PRIORITY);
     NRFX_IRQ_PRIORITY_SET(RADIO_IRQn, MPSL_HIGH_IRQ_PRIORITY);
