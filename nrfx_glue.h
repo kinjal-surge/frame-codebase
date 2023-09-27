@@ -28,11 +28,17 @@
 #include "nrfx.h"
 #include <soc/nrfx_atomic.h>
 #include <soc/nrfx_coredep.h>
-
+// #define MPSL_IRQ_RTC0_Handler RTC0_IRQHandler
+// #define MPSL_IRQ_TIMER0_Handler TIMER0_IRQHandler
+// #define MPSL_IRQ_RADIO_Handler RADIO_IRQHandler
+// #define MPSL_IRQ_CLOCK_Handler CLOCK_POWER_IRQHandler
 #define nrfx_gpiote_irq_handler GPIOTE_IRQHandler
 #define nrfx_ipc_irq_handler IPC_IRQHandler
-#define nrfx_rtc_0_irq_handler RTC0_IRQHandler
+// #define nrfx_rtc_0_irq_handler RTC0_IRQHandler
 #define nrfx_rng_irq_handler RNG_IRQHandler
+#define rtc_0_irq_handler RTC0_IRQHandler
+#define timer_0_irq_handler TIMER0_IRQHandler
+#define radio_irq_handler RADIO_IRQHandler
 #define NRFX_ASSERT(expression) \
     do                          \
     {                           \

@@ -49,7 +49,7 @@
 #include "mpsl.h"
 #include "nrf_errno.h"
 #define LOW_PRIORITY 0x0f
-static const nrfx_rtc_t rtc_instance = NRFX_RTC_INSTANCE(0);
+// static const nrfx_rtc_t rtc_instance = NRFX_RTC_INSTANCE(0);
 static const nrfx_spim_t spi_instance = NRFX_SPIM_INSTANCE(0);
 static const nrfx_twim_t i2c_instance = NRFX_TWIM_INSTANCE(0);
 // static const uint8_t ACCELEROMETER_I2C_ADDRESS = 0x4C;
@@ -61,7 +61,7 @@ static bool not_real_hardware = false;
 
 static bool prevent_sleep = true;
 void setup_bluetooth(void);
-static void unused_rtc_event_handler(nrfx_rtc_int_type_t int_type) {}
+// static void unused_rtc_event_handler(nrfx_rtc_int_type_t int_type) {}
 volatile bool mpsl_event_pending = false;
 volatile uint8_t rng = 0;
 static __aligned(8) uint8_t sdc_mem[21000];
@@ -292,18 +292,18 @@ static void interprocessor_message_handler(void)
 static void setup_network_core(void)
 {
     // Configure the RTC
-    {
-        nrfx_rtc_config_t config = NRFX_RTC_DEFAULT_CONFIG;
+    // {
+    //     nrfx_rtc_config_t config = NRFX_RTC_DEFAULT_CONFIG;
 
-        // 1024Hz = >1ms resolution
-        config.prescaler = NRF_RTC_FREQ_TO_PRESCALER(1024);
+    //     // 1024Hz = >1ms resolution
+    //     config.prescaler = NRF_RTC_FREQ_TO_PRESCALER(1024);
 
-        app_err(nrfx_rtc_init(&rtc_instance, &config, unused_rtc_event_handler));
-        nrfx_rtc_enable(&rtc_instance);
+    //     app_err(nrfx_rtc_init(&rtc_instance, &config, unused_rtc_event_handler));
+    //     nrfx_rtc_enable(&rtc_instance);
 
-        // Call tick interrupt every ms to wake up the core
-        nrfx_rtc_tick_enable(&rtc_instance, true);
-    }
+    //     // Call tick interrupt every ms to wake up the core
+    //     nrfx_rtc_tick_enable(&rtc_instance, true);
+    // }
 
     // Configure the I2C driver
     {
@@ -488,6 +488,7 @@ int main(void)
 {
     NRFX_LOG(RTT_CTRL_RESET RTT_CTRL_CLEAR);
     NRFX_LOG("MicroPython on Frame - " BUILD_VERSION " (" GIT_COMMIT ")");
+    NRFX_IRQ_ENABLE(CLOCK_POWER_IRQn);
     // app_err(nrf_drv_swi_init());
     setup_network_core();
     setup_bluetooth();
@@ -509,7 +510,23 @@ void SWI0_IRQHandler()
     mpsl_event_pending = true;
     NRFX_IRQ_PENDING_CLEAR(SWI0_IRQn);
 }
+void radio_irq_handler_wrapper()
+{
+    NRFX_LOG("in radio_irq_handler_wrapper");
+    MPSL_IRQ_RADIO_Handler();
+}
 
+void rtc_0_irq_handler_wrapper()
+{
+    NRFX_LOG("in rtc_0_irq_handler_wrapper");
+    MPSL_IRQ_RTC0_Handler();
+}
+
+void timer_0_irq_handler_wrapper()
+{
+    NRFX_LOG("in timer_0_irq_handler_wrapper");
+    MPSL_IRQ_TIMER0_Handler();
+}
 // A fault handler function that prints the error code and halts the execution
 static void my_fault_handler(const char *file, const uint32_t line)
 {
@@ -676,7 +693,7 @@ void setup_bluetooth(void)
     sdc_cfg_t cfg;
     nrfx_rng_config_t rng_config = NRFX_RNG_DEFAULT_CONFIG;
     app_err(nrfx_rng_init(&rng_config, rng_evt_handler));
-    nrfx_rng_start();
+    // nrfx_rng_start();
     // MPSL initialization
     mpsl_clock_lfclk_cfg_t mpsl_clock_config = {
         .source = MPSL_CLOCK_LF_SRC_XTAL,
