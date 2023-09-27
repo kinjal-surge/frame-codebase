@@ -34,6 +34,7 @@
 #include "nrfx_twim.h"
 #include "pinout.h"
 // for bluetooth
+#include "nrfx_egu.h"
 #include "sdc.h"
 #include "sdc_hci.h"
 #include "sdc_soc.h"
@@ -482,12 +483,6 @@ static void setup_network_core(void)
 
     NRFX_LOG("Network core configured");
 }
-void SWI1_IRQHandler()
-{
-    NRFX_LOG("in SWI1_IRQHandler");
-    mpsl_event_pending = true;
-    NRFX_IRQ_PENDING_CLEAR(SWI1_IRQn);
-}
 
 int main(void)
 {
@@ -498,15 +493,21 @@ int main(void)
     setup_bluetooth();
     while (1)
     {
-        // if (mpsl_event_pending)
-        // {
-        //     NRFX_LOG_INFO("mpsl_low_priority_process");
-        //     mpsl_low_priority_process();
-        //     mpsl_event_pending = false;
-        // }
-        // nrfx_systick_delay_ms(100);
+        if (mpsl_event_pending)
+        {
+            NRFX_LOG_INFO("mpsl_low_priority_process");
+            mpsl_low_priority_process();
+            mpsl_event_pending = false;
+        }
+        nrfx_systick_delay_ms(100);
         run_micropython();
     }
+}
+void SWI0_IRQHandler()
+{
+    NRFX_LOG("in SWI1_IRQHandler");
+    mpsl_event_pending = true;
+    NRFX_IRQ_PENDING_CLEAR(SWI0_IRQn);
 }
 
 // A fault handler function that prints the error code and halts the execution
@@ -587,7 +588,30 @@ static inline void sdc_callback()
     }
     NRFX_LOG("sdc_callback called %d", err_code);
 }
+static void mpsl_irq_disable(void)
+{
+    NRFX_IRQ_DISABLE(TIMER0_IRQn);
+    NRFX_IRQ_DISABLE(TIMER1_IRQn);
+    NRFX_IRQ_DISABLE(RTC0_IRQn);
+    NRFX_IRQ_DISABLE(RADIO_IRQn);
+    NRFX_IRQ_DISABLE(SWI0_IRQn);
+}
 
+static void mpsl_irq_connect(void)
+{
+    /* Ensure IRQs are disabled before attaching. */
+    mpsl_irq_disable();
+    NRFX_IRQ_PRIORITY_SET(SWI0_IRQn, LOW_PRIORITY);
+    NRFX_IRQ_PRIORITY_SET(RTC0_IRQn, MPSL_HIGH_IRQ_PRIORITY);
+    NRFX_IRQ_PRIORITY_SET(RADIO_IRQn, MPSL_HIGH_IRQ_PRIORITY);
+    NRFX_IRQ_PRIORITY_SET(TIMER0_IRQn, MPSL_HIGH_IRQ_PRIORITY);
+    NRFX_IRQ_PRIORITY_SET(TIMER1_IRQn, MPSL_HIGH_IRQ_PRIORITY);
+    NRFX_IRQ_ENABLE(SWI0_IRQn);
+    NRFX_IRQ_ENABLE(TIMER0_IRQn);
+    NRFX_IRQ_ENABLE(RTC0_IRQn);
+    NRFX_IRQ_ENABLE(RADIO_IRQn);
+    NRFX_IRQ_ENABLE(TIMER1_IRQn);
+}
 void checkError(int32_t ret_code)
 {
     NRFX_LOG("Response: %d", ret_code);
@@ -636,33 +660,33 @@ void checkError(int32_t ret_code)
 //      */
 //     return 1;
 // }
+// void egu_event_handler(uint8_t event_idx, void *p_context)
+// {
+//     NRFX_LOG("in egu_event_handler");
+//     mpsl_event_pending = true;
+//     NRFX_IRQ_PENDING_CLEAR(SWI0_IRQn);
+// }
 void setup_bluetooth(void)
 {
-    // nrfx_systick_init();
+
+    nrfx_systick_init();
+    // nrfx_egu_t *egu_instanace = NRFX_EGU0;
+    // void *p_context;
+    // app_err(nrfx_egu_init(egu_instanace, LOW_PRIORITY, egu_event_handler, p_context));
     sdc_cfg_t cfg;
     nrfx_rng_config_t rng_config = NRFX_RNG_DEFAULT_CONFIG;
     app_err(nrfx_rng_init(&rng_config, rng_evt_handler));
-    // nrfx_rng_start();
+    nrfx_rng_start();
     // MPSL initialization
-
-    NRFX_IRQ_PRIORITY_SET(SWI1_IRQn, LOW_PRIORITY);
-    NRFX_IRQ_ENABLE(SWI1_IRQn);
-    NRFX_IRQ_PRIORITY_SET(RTC0_IRQn, 0);
-    NRFX_IRQ_ENABLE(RTC0_IRQn);
-    NRFX_IRQ_PRIORITY_SET(RADIO_IRQn, 0);
-    NRFX_IRQ_ENABLE(RADIO_IRQn);
-    NRFX_IRQ_PRIORITY_SET(TIMER0_IRQn, 0);
-    NRFX_IRQ_ENABLE(TIMER0_IRQn);
-    NRFX_IRQ_PRIORITY_SET(TIMER1_IRQn, 0);
-    NRFX_IRQ_ENABLE(TIMER1_IRQn);
     mpsl_clock_lfclk_cfg_t mpsl_clock_config = {
         .source = MPSL_CLOCK_LF_SRC_XTAL,
         .accuracy_ppm = 50,
         .rc_ctiv = 0,
         .rc_temp_ctiv = 0,
         .skip_wait_lfclk_started = false};
+    mpsl_irq_connect();
+    checkError(mpsl_init(&mpsl_clock_config, SWI0_IRQn, mpsl_assert_handler));
 
-    checkError(mpsl_init(&mpsl_clock_config, SWI1_IRQn, mpsl_assert_handler));
     // IRQ_DIRECT_CONNECT(TIMER0_IRQn, MPSL_HIGH_IRQ_PRIORITY, mpsl_timer0_isr_wrapper,
     //                    0);
     // IRQ_DIRECT_CONNECT(RTC0_IRQn, MPSL_HIGH_IRQ_PRIORITY, mpsl_rtc0_isr_wrapper,
