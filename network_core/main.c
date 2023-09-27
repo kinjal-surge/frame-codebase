@@ -51,7 +51,6 @@
 static const nrfx_rtc_t rtc_instance = NRFX_RTC_INSTANCE(0);
 static const nrfx_spim_t spi_instance = NRFX_SPIM_INSTANCE(0);
 static const nrfx_twim_t i2c_instance = NRFX_TWIM_INSTANCE(0);
-
 // static const uint8_t ACCELEROMETER_I2C_ADDRESS = 0x4C;
 static const uint8_t CAMERA_I2C_ADDRESS = 0x6C;
 static const uint8_t MAGNETOMETER_I2C_ADDRESS = 0x0C;
@@ -64,7 +63,7 @@ void setup_bluetooth(void);
 static void unused_rtc_event_handler(nrfx_rtc_int_type_t int_type) {}
 volatile bool mpsl_event_pending = false;
 volatile uint8_t rng = 0;
-static __aligned(8) uint8_t sdc_mem[2000];
+static __aligned(8) uint8_t sdc_mem[21000];
 typedef struct i2c_response_t
 {
     bool fail;
@@ -483,16 +482,29 @@ static void setup_network_core(void)
 
     NRFX_LOG("Network core configured");
 }
+void SWI1_IRQHandler()
+{
+    NRFX_LOG("in SWI1_IRQHandler");
+    mpsl_event_pending = true;
+    NRFX_IRQ_PENDING_CLEAR(SWI1_IRQn);
+}
 
 int main(void)
 {
     NRFX_LOG(RTT_CTRL_RESET RTT_CTRL_CLEAR);
     NRFX_LOG("MicroPython on Frame - " BUILD_VERSION " (" GIT_COMMIT ")");
-
+    // app_err(nrf_drv_swi_init());
     setup_network_core();
     setup_bluetooth();
     while (1)
     {
+        // if (mpsl_event_pending)
+        // {
+        //     NRFX_LOG_INFO("mpsl_low_priority_process");
+        //     mpsl_low_priority_process();
+        //     mpsl_event_pending = false;
+        // }
+        // nrfx_systick_delay_ms(100);
         run_micropython();
     }
 }
@@ -513,27 +525,28 @@ static void mpsl_assert_handler(const char *const file, const uint32_t line)
 
 static inline void sdc_callback()
 {
-    bool check_again;
+    // bool check_again;
     uint8_t hci_buffer[HCI_MSG_BUFFER_MAX_SIZE];
     sdc_hci_msg_type_t msg_type;
     int32_t err_code;
-    do
-    {
-        check_again = false;
-        err_code = sdc_hci_get(hci_buffer, &msg_type);
-        if (err_code == 0)
-        {
-            if (msg_type == SDC_HCI_MSG_TYPE_EVT)
-            {
-                check_again = true;
-            }
+    err_code = sdc_hci_get(hci_buffer, &msg_type);
+    // do
+    // {
+    //     check_again = false;
+    //     err_code = sdc_hci_get(hci_buffer, &msg_type);
+    //     if (err_code == 0)
+    //     {
+    //         if (msg_type == SDC_HCI_MSG_TYPE_EVT)
+    //         {
+    //             check_again = true;
+    //         }
 
-            if (msg_type == SDC_HCI_MSG_TYPE_DATA)
-            {
-                check_again = true;
-            }
-        }
-    } while (check_again);
+    //         if (msg_type == SDC_HCI_MSG_TYPE_DATA)
+    //         {
+    //             check_again = true;
+    //         }
+    //     }
+    // } while (check_again);
     NRFX_LOG("sdc_get: %d", err_code);
     if (err_code == 0)
     {
@@ -574,6 +587,7 @@ static inline void sdc_callback()
     }
     NRFX_LOG("sdc_callback called %d", err_code);
 }
+
 void checkError(int32_t ret_code)
 {
     NRFX_LOG("Response: %d", ret_code);
@@ -584,11 +598,51 @@ void checkError(int32_t ret_code)
     return;
 }
 
+// ISR_DIRECT_DECLARE(mpsl_timer0_isr_wrapper)
+// {
+//     LOG_DBG("in mpsl_timer0_isr_wrapper");
+//     MPSL_IRQ_TIMER0_Handler();
+
+//     ISR_DIRECT_PM();
+
+//     /* We may need to reschedule in case a radio timeslot callback
+//      * accesses zephyr primitives.
+//      */
+//     return 1;
+// }
+
+// ISR_DIRECT_DECLARE(mpsl_rtc0_isr_wrapper)
+// {
+//     LOG_DBG("in mpsl_rtc0_isr_wrapper");
+//     MPSL_IRQ_RTC0_Handler();
+
+//     ISR_DIRECT_PM();
+
+//     /* No need for rescheduling, because the interrupt handler
+//      * does not access zephyr primitives.
+//      */
+//     return 0;
+// }
+
+// ISR_DIRECT_DECLARE(mpsl_radio_isr_wrapper)
+// {
+//     LOG_DBG("in mpsl_radio_isr_wrapper");
+//     MPSL_IRQ_RADIO_Handler();
+
+//     ISR_DIRECT_PM();
+
+//     /* We may need to reschedule in case a radio timeslot callback
+//      * accesses zephyr primitives.
+//      */
+//     return 1;
+// }
 void setup_bluetooth(void)
 {
-    nrfx_systick_init();
+    // nrfx_systick_init();
     sdc_cfg_t cfg;
-
+    nrfx_rng_config_t rng_config = NRFX_RNG_DEFAULT_CONFIG;
+    app_err(nrfx_rng_init(&rng_config, rng_evt_handler));
+    // nrfx_rng_start();
     // MPSL initialization
 
     NRFX_IRQ_PRIORITY_SET(SWI1_IRQn, LOW_PRIORITY);
@@ -600,94 +654,126 @@ void setup_bluetooth(void)
     NRFX_IRQ_PRIORITY_SET(TIMER0_IRQn, 0);
     NRFX_IRQ_ENABLE(TIMER0_IRQn);
     NRFX_IRQ_PRIORITY_SET(TIMER1_IRQn, 0);
-
     NRFX_IRQ_ENABLE(TIMER1_IRQn);
     mpsl_clock_lfclk_cfg_t mpsl_clock_config = {
-        .source = MPSL_CLOCK_LF_SRC_SYNTH,
-        .accuracy_ppm = MPSL_DEFAULT_CLOCK_ACCURACY_PPM,
+        .source = MPSL_CLOCK_LF_SRC_XTAL,
+        .accuracy_ppm = 50,
         .rc_ctiv = 0,
         .rc_temp_ctiv = 0,
-        .skip_wait_lfclk_started = MPSL_DEFAULT_SKIP_WAIT_LFCLK_STARTED};
+        .skip_wait_lfclk_started = false};
 
     checkError(mpsl_init(&mpsl_clock_config, SWI1_IRQn, mpsl_assert_handler));
-
-    nrfx_rng_config_t rng_config = NRFX_RNG_DEFAULT_CONFIG;
-    app_err(nrfx_rng_init(&rng_config, rng_evt_handler));
-
-    nrfx_rng_start();
+    // IRQ_DIRECT_CONNECT(TIMER0_IRQn, MPSL_HIGH_IRQ_PRIORITY, mpsl_timer0_isr_wrapper,
+    //                    0);
+    // IRQ_DIRECT_CONNECT(RTC0_IRQn, MPSL_HIGH_IRQ_PRIORITY, mpsl_rtc0_isr_wrapper,
+    //                    0);
+    // IRQ_DIRECT_CONNECT(RADIO_IRQn, MPSL_HIGH_IRQ_PRIORITY, mpsl_radio_isr_wrapper,
+    //                    0);
+    checkError(sdc_init(&my_fault_handler));
     sdc_rand_source_t my_rand_source = {
         .rand_prio_low_get = rand_get,
         .rand_prio_high_get = rand_get,
         .rand_poll = rand_poll};
-
-    checkError(sdc_init(&my_fault_handler));
     sdc_rand_source_register(&my_rand_source);
-    sdc_default_tx_power_set(0);
+    // sdc_default_tx_power_set(0);
     checkError(sdc_support_adv());
     checkError(sdc_support_peripheral());
+    checkError(sdc_support_central());
+    checkError(sdc_support_dle_central());
     checkError(sdc_support_dle_peripheral());
-    checkError(sdc_support_phy_update_peripheral());
     checkError(sdc_support_le_2m_phy());
+    checkError(sdc_support_le_coded_phy());
+    checkError(sdc_support_phy_update_central());
+    checkError(sdc_support_phy_update_peripheral());
 
-    cfg.central_count.count = 0;
+    cfg.central_count.count = 15;
     checkError(sdc_cfg_set(SDC_DEFAULT_RESOURCE_CFG_TAG, SDC_CFG_TYPE_CENTRAL_COUNT, &cfg));
-    cfg.adv_count.count = SDC_DEFAULT_ADV_COUNT;
-    checkError(sdc_cfg_set(SDC_DEFAULT_RESOURCE_CFG_TAG, SDC_CFG_TYPE_ADV_COUNT, &cfg));
-    cfg.peripheral_count.count = SDC_DEFAULT_PERIPHERAL_COUNT;
+    cfg.peripheral_count.count = 1;
     checkError(sdc_cfg_set(SDC_DEFAULT_RESOURCE_CFG_TAG, SDC_CFG_TYPE_PERIPHERAL_COUNT, &cfg));
-    cfg.event_length.event_length_us = SDC_DEFAULT_EVENT_LENGTH_US;
-    checkError(sdc_cfg_set(SDC_DEFAULT_RESOURCE_CFG_TAG, SDC_CFG_TYPE_EVENT_LENGTH, &cfg));
-    cfg.buffer_cfg.tx_packet_size = SDC_DEFAULT_TX_PACKET_SIZE;
-    cfg.buffer_cfg.rx_packet_size = SDC_DEFAULT_RX_PACKET_SIZE;
-    cfg.buffer_cfg.tx_packet_count = SDC_DEFAULT_TX_PACKET_COUNT;
-    cfg.buffer_cfg.rx_packet_count = SDC_DEFAULT_RX_PACKET_COUNT;
-
+    cfg.fal_size = 8;
+    checkError(sdc_cfg_set(SDC_DEFAULT_RESOURCE_CFG_TAG, SDC_CFG_TYPE_FAL_SIZE, &cfg));
+    cfg.buffer_cfg.rx_packet_size = 27;
+    cfg.buffer_cfg.tx_packet_size = 27;
+    cfg.buffer_cfg.rx_packet_count = 2;
+    cfg.buffer_cfg.tx_packet_count = 3;
     checkError(sdc_cfg_set(SDC_DEFAULT_RESOURCE_CFG_TAG, SDC_CFG_TYPE_BUFFER_CFG, &cfg));
+    cfg.event_length.event_length_us = 7500;
+    checkError(sdc_cfg_set(SDC_DEFAULT_RESOURCE_CFG_TAG, SDC_CFG_TYPE_EVENT_LENGTH, &cfg));
+    cfg.adv_count.count = 1;
+    checkError(sdc_cfg_set(SDC_DEFAULT_RESOURCE_CFG_TAG, SDC_CFG_TYPE_ADV_COUNT, &cfg));
     cfg.adv_buffer_cfg.max_adv_data = SDC_DEFAULT_ADV_BUF_SIZE;
     checkError(sdc_cfg_set(SDC_DEFAULT_RESOURCE_CFG_TAG, SDC_CFG_TYPE_ADV_BUFFER_CFG, &cfg));
+    cfg.scan_buffer_cfg.count = 3;
+    checkError(sdc_cfg_set(SDC_DEFAULT_RESOURCE_CFG_TAG, SDC_CFG_TYPE_SCAN_BUFFER_CFG, &cfg));
+    uint8_t build_revision[SDC_BUILD_REVISION_SIZE];
+
+    sdc_build_revision_get(build_revision);
+    NRFX_LOG_HEXDUMP_DEBUG(build_revision, sizeof(build_revision));
+    NRFX_LOG("build_revision %d", sizeof(build_revision));
+    // cfg.central_count.count = 0;
+    // checkError(sdc_cfg_set(SDC_DEFAULT_RESOURCE_CFG_TAG, SDC_CFG_TYPE_CENTRAL_COUNT, &cfg));
+    // cfg.adv_count.count = SDC_DEFAULT_ADV_COUNT;
+    // checkError(sdc_cfg_set(SDC_DEFAULT_RESOURCE_CFG_TAG, SDC_CFG_TYPE_ADV_COUNT, &cfg));
+    // cfg.peripheral_count.count = SDC_DEFAULT_PERIPHERAL_COUNT;
+    // checkError(sdc_cfg_set(SDC_DEFAULT_RESOURCE_CFG_TAG, SDC_CFG_TYPE_PERIPHERAL_COUNT, &cfg));
+    // cfg.event_length.event_length_us = SDC_DEFAULT_EVENT_LENGTH_US;
+    // checkError(sdc_cfg_set(SDC_DEFAULT_RESOURCE_CFG_TAG, SDC_CFG_TYPE_EVENT_LENGTH, &cfg));
+    // cfg.buffer_cfg.tx_packet_size = SDC_DEFAULT_TX_PACKET_SIZE;
+    // cfg.buffer_cfg.rx_packet_size = SDC_DEFAULT_RX_PACKET_SIZE;
+    // cfg.buffer_cfg.tx_packet_count = SDC_DEFAULT_TX_PACKET_COUNT;
+    // cfg.buffer_cfg.rx_packet_count = SDC_DEFAULT_RX_PACKET_COUNT;
+
+    // checkError(sdc_cfg_set(SDC_DEFAULT_RESOURCE_CFG_TAG, SDC_CFG_TYPE_BUFFER_CFG, &cfg));
+    // cfg.adv_buffer_cfg.max_adv_data = SDC_DEFAULT_ADV_BUF_SIZE;
+    // checkError(sdc_cfg_set(SDC_DEFAULT_RESOURCE_CFG_TAG, SDC_CFG_TYPE_ADV_BUFFER_CFG, &cfg));
 
     checkError(sdc_enable(sdc_callback, sdc_mem));
     checkError(sdc_hci_cmd_cb_reset());
     sdc_callback();
-    sdc_hci_cmd_cb_set_event_mask_t evt_mask = {.raw = {0xde, 0x0b, 0x00, 0x00, 0x00, 0x80, 0x00, 0x00}};
-    checkError(sdc_hci_cmd_cb_set_event_mask(&evt_mask));
-    sdc_callback();
-    sdc_hci_cmd_le_set_random_address_t rand_address = {.random_address = {0xad, 0x4b, 0xe2, 0x43, 0x2d, 0xc0}};
-    checkError(sdc_hci_cmd_le_set_random_address(&rand_address));
-    sdc_callback();
-    sdc_hci_cmd_le_set_adv_params_t adv_param = {
-        .adv_interval_min = 0x00a0,
-        .adv_interval_max = 0x00f0,
-        .adv_type = 0x00,
-        .own_address_type = 0x01,
-        .peer_address_type = 0x00,
-        .peer_address = {0, 0, 0, 0, 0, 0},
-        .adv_channel_map = 0x07,
-        .adv_filter_policy = 0x00};
-    checkError(sdc_hci_cmd_le_set_adv_params(&adv_param));
-    sdc_callback();
-    sdc_hci_cmd_le_set_adv_data_t adv_data = {
-        .adv_data = {
-            0x0b, 0x02, 0x01, 0x06, 0x07, 0x03, 0x0d, 0x18,
-            0x0f, 0x18, 0x0a, 0x18, 0x00, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
-        .adv_data_length = 31};
-    checkError(sdc_hci_cmd_le_set_adv_data(&adv_data));
-    sdc_callback();
-    sdc_hci_cmd_le_set_scan_response_data_t scan_response = {
-        .scan_response_data = {
-            0x19, 0x18, 0x09, 0x5a, 0x65, 0x70, 0x68, 0x79,
-            0x72, 0x20, 0x48, 0x65, 0x61, 0x72, 0x74, 0x72,
-            0x61, 0x74, 0x65, 0x20, 0x53, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
-        .scan_response_data_length = 31};
-    checkError(sdc_hci_cmd_le_set_scan_response_data(&scan_response));
-    sdc_callback();
-    sdc_hci_cmd_le_set_adv_enable_t adv_enable = {.adv_enable = 0x01};
+    // sdc_hci_cmd_le_read_local_supported_features_return_t features;
+    // checkError(sdc_hci_cmd_le_read_local_supported_features(&features));
+    // NRFX_LOG("size of features %d", features.params.le_periodic_advertising);
+    // sdc_callback();
+    // sdc_hci_cmd_cb_set_event_mask_t evt_mask = {.raw = {0xde, 0x0b, 0x00, 0x00, 0x00, 0x80, 0x00, 0x00}};
+    // // evt_mask.params.
+    // checkError(sdc_hci_cmd_cb_set_event_mask(&evt_mask));
+    // sdc_callback();
+    // sdc_hci_cmd_le_set_random_address_t rand_address = {.random_address = {0xad, 0x4b, 0xe2, 0x43, 0x2d, 0xc0}};
+    // checkError(sdc_hci_cmd_le_set_random_address(&rand_address));
+    // sdc_callback();
+    // sdc_hci_cmd_le_set_adv_params_t adv_param = {
+    //     .adv_interval_min = 0x00a0,
+    //     .adv_interval_max = 0x00f0,
+    //     .adv_type = 0x00,
+    //     .own_address_type = 0x01,
+    //     .peer_address_type = 0x00,
+    //     .peer_address = {0, 0, 0, 0, 0, 0},
+    //     .adv_channel_map = 0x07,
+    //     .adv_filter_policy = 0x00};
+    // checkError(sdc_hci_cmd_le_set_adv_params(&adv_param));
+    // sdc_callback();
+    // sdc_hci_cmd_le_set_adv_data_t adv_data = {
+    //     .adv_data = {
+    //         0x0b, 0x02, 0x01, 0x06, 0x07, 0x03, 0x0d, 0x18,
+    //         0x0f, 0x18, 0x0a, 0x18, 0x00, 0x00, 0x00, 0x00,
+    //         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    //         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
+    //     .adv_data_length = 31};
+    // checkError(sdc_hci_cmd_le_set_adv_data(&adv_data));
+    // sdc_callback();
+    // sdc_hci_cmd_le_set_scan_response_data_t scan_response = {
+    //     .scan_response_data = {
+    //         0x19, 0x18, 0x09, 0x5a, 0x65, 0x70, 0x68, 0x79,
+    //         0x72, 0x20, 0x48, 0x65, 0x61, 0x72, 0x74, 0x72,
+    //         0x61, 0x74, 0x65, 0x20, 0x53, 0x00, 0x00, 0x00,
+    //         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
+    //     .scan_response_data_length = 31};
+    // checkError(sdc_hci_cmd_le_set_scan_response_data(&scan_response));
+    // sdc_callback();
+    // sdc_hci_cmd_le_set_adv_enable_t adv_enable = {.adv_enable = 0x01};
 
-    checkError(sdc_hci_cmd_le_set_adv_enable(&adv_enable));
-    sdc_callback();
+    // checkError(sdc_hci_cmd_le_set_adv_enable(&adv_enable));
+    // sdc_callback();
     NRFX_LOG("BLE  setup done");
     return;
 }
