@@ -49,7 +49,7 @@
 #include "mpsl.h"
 #include "nrf_errno.h"
 #define LOW_PRIORITY 0x0f
-// static const nrfx_rtc_t rtc_instance = NRFX_RTC_INSTANCE(0);
+static const nrfx_rtc_t rtc_instance = NRFX_RTC_INSTANCE(0);
 static const nrfx_spim_t spi_instance = NRFX_SPIM_INSTANCE(0);
 static const nrfx_twim_t i2c_instance = NRFX_TWIM_INSTANCE(0);
 // static const uint8_t ACCELEROMETER_I2C_ADDRESS = 0x4C;
@@ -58,13 +58,53 @@ static const uint8_t MAGNETOMETER_I2C_ADDRESS = 0x0C;
 static const uint8_t PMIC_I2C_ADDRESS = 0x48;
 
 static bool not_real_hardware = false;
-
+static bool enable_mpsl = false;
 static bool prevent_sleep = true;
-void setup_bluetooth(void);
-// static void unused_rtc_event_handler(nrfx_rtc_int_type_t int_type) {}
 volatile bool mpsl_event_pending = false;
 volatile uint8_t rng = 0;
 static __aligned(8) uint8_t sdc_mem[21000];
+void checkError(int32_t);
+void setup_bluetooth(void);
+
+static void unused_rtc_event_handler(nrfx_rtc_int_type_t int_type)
+{
+    if (enable_mpsl)
+    {
+        MPSL_IRQ_RTC0_Handler();
+    }
+}
+void SWI0_IRQHandler()
+{
+    if (enable_mpsl)
+    {
+        // NRFX_LOG("in SWI1_IRQHandler");
+        mpsl_event_pending = true;
+        NRFX_IRQ_PENDING_CLEAR(SWI0_IRQn);
+    }
+}
+void radio_irq_handler_wrapper()
+{
+    if (enable_mpsl)
+    {
+        // NRFX_LOG("in radio_irq_handler_wrapper");
+        MPSL_IRQ_RADIO_Handler();
+    }
+}
+// void rtc_0_irq_handler_wrapper()
+// {
+//     NRFX_LOG("in rtc_0_irq_handler_wrapper");
+//     MPSL_IRQ_RTC0_Handler();
+// }
+
+void timer_0_irq_handler_wrapper()
+{
+    if (enable_mpsl)
+    {
+        // NRFX_LOG("in timer_0_irq_handler_wrapper");
+        MPSL_IRQ_TIMER0_Handler();
+    }
+}
+
 typedef struct i2c_response_t
 {
     bool fail;
@@ -292,18 +332,18 @@ static void interprocessor_message_handler(void)
 static void setup_network_core(void)
 {
     // Configure the RTC
-    // {
-    //     nrfx_rtc_config_t config = NRFX_RTC_DEFAULT_CONFIG;
+    {
+        nrfx_rtc_config_t config = NRFX_RTC_DEFAULT_CONFIG;
 
-    //     // 1024Hz = >1ms resolution
-    //     config.prescaler = NRF_RTC_FREQ_TO_PRESCALER(1024);
+        // 1024Hz = >1ms resolution
+        config.prescaler = NRF_RTC_FREQ_TO_PRESCALER(1024);
 
-    //     app_err(nrfx_rtc_init(&rtc_instance, &config, unused_rtc_event_handler));
-    //     nrfx_rtc_enable(&rtc_instance);
+        app_err(nrfx_rtc_init(&rtc_instance, &config, unused_rtc_event_handler));
+        nrfx_rtc_enable(&rtc_instance);
 
-    //     // Call tick interrupt every ms to wake up the core
-    //     nrfx_rtc_tick_enable(&rtc_instance, true);
-    // }
+        // Call tick interrupt every ms to wake up the core
+        nrfx_rtc_tick_enable(&rtc_instance, true);
+    }
 
     // Configure the I2C driver
     {
@@ -500,33 +540,10 @@ int main(void)
             mpsl_low_priority_process();
             mpsl_event_pending = false;
         }
-        nrfx_systick_delay_ms(100);
         run_micropython();
     }
 }
-void SWI0_IRQHandler()
-{
-    NRFX_LOG("in SWI1_IRQHandler");
-    mpsl_event_pending = true;
-    NRFX_IRQ_PENDING_CLEAR(SWI0_IRQn);
-}
-void radio_irq_handler_wrapper()
-{
-    NRFX_LOG("in radio_irq_handler_wrapper");
-    MPSL_IRQ_RADIO_Handler();
-}
 
-void rtc_0_irq_handler_wrapper()
-{
-    NRFX_LOG("in rtc_0_irq_handler_wrapper");
-    MPSL_IRQ_RTC0_Handler();
-}
-
-void timer_0_irq_handler_wrapper()
-{
-    NRFX_LOG("in timer_0_irq_handler_wrapper");
-    MPSL_IRQ_TIMER0_Handler();
-}
 // A fault handler function that prints the error code and halts the execution
 static void my_fault_handler(const char *file, const uint32_t line)
 {
@@ -614,8 +631,16 @@ static inline void sdc_callback()
 //     NRFX_IRQ_DISABLE(SWI0_IRQn);
 // }
 
-static void mpsl_irq_connect(void)
+static void mpsl_lib_init(void)
 {
+
+    mpsl_clock_lfclk_cfg_t mpsl_clock_config = {
+        .source = MPSL_CLOCK_LF_SRC_XTAL,
+        .accuracy_ppm = 50,
+        .rc_ctiv = 0,
+        .rc_temp_ctiv = 0,
+        .skip_wait_lfclk_started = false};
+
     /* Ensure IRQs are disabled before attaching. */
     // mpsl_irq_disable();
     NRFX_IRQ_PRIORITY_SET(SWI0_IRQn, LOW_PRIORITY);
@@ -628,6 +653,11 @@ static void mpsl_irq_connect(void)
     NRFX_IRQ_ENABLE(RTC0_IRQn);
     NRFX_IRQ_ENABLE(RADIO_IRQn);
     NRFX_IRQ_ENABLE(TIMER1_IRQn);
+    NRFX_LOG("MPSL init starting");
+    enable_mpsl = true;
+    checkError(mpsl_init(&mpsl_clock_config, SWI0_IRQn, mpsl_assert_handler));
+
+    NRFX_LOG("MPSL init done");
 }
 void checkError(int32_t ret_code)
 {
@@ -639,77 +669,18 @@ void checkError(int32_t ret_code)
     return;
 }
 
-// ISR_DIRECT_DECLARE(mpsl_timer0_isr_wrapper)
-// {
-//     LOG_DBG("in mpsl_timer0_isr_wrapper");
-//     MPSL_IRQ_TIMER0_Handler();
-
-//     ISR_DIRECT_PM();
-
-//     /* We may need to reschedule in case a radio timeslot callback
-//      * accesses zephyr primitives.
-//      */
-//     return 1;
-// }
-
-// ISR_DIRECT_DECLARE(mpsl_rtc0_isr_wrapper)
-// {
-//     LOG_DBG("in mpsl_rtc0_isr_wrapper");
-//     MPSL_IRQ_RTC0_Handler();
-
-//     ISR_DIRECT_PM();
-
-//     /* No need for rescheduling, because the interrupt handler
-//      * does not access zephyr primitives.
-//      */
-//     return 0;
-// }
-
-// ISR_DIRECT_DECLARE(mpsl_radio_isr_wrapper)
-// {
-//     LOG_DBG("in mpsl_radio_isr_wrapper");
-//     MPSL_IRQ_RADIO_Handler();
-
-//     ISR_DIRECT_PM();
-
-//     /* We may need to reschedule in case a radio timeslot callback
-//      * accesses zephyr primitives.
-//      */
-//     return 1;
-// }
-// void egu_event_handler(uint8_t event_idx, void *p_context)
-// {
-//     NRFX_LOG("in egu_event_handler");
-//     mpsl_event_pending = true;
-//     NRFX_IRQ_PENDING_CLEAR(SWI0_IRQn);
-// }
 void setup_bluetooth(void)
 {
 
     nrfx_systick_init();
-    // nrfx_egu_t *egu_instanace = NRFX_EGU0;
-    // void *p_context;
-    // app_err(nrfx_egu_init(egu_instanace, LOW_PRIORITY, egu_event_handler, p_context));
     sdc_cfg_t cfg;
     nrfx_rng_config_t rng_config = NRFX_RNG_DEFAULT_CONFIG;
     app_err(nrfx_rng_init(&rng_config, rng_evt_handler));
-    // nrfx_rng_start();
+    nrfx_rng_start();
     // MPSL initialization
-    mpsl_clock_lfclk_cfg_t mpsl_clock_config = {
-        .source = MPSL_CLOCK_LF_SRC_XTAL,
-        .accuracy_ppm = 50,
-        .rc_ctiv = 0,
-        .rc_temp_ctiv = 0,
-        .skip_wait_lfclk_started = false};
-    mpsl_irq_connect();
-    checkError(mpsl_init(&mpsl_clock_config, SWI0_IRQn, mpsl_assert_handler));
 
-    // IRQ_DIRECT_CONNECT(TIMER0_IRQn, MPSL_HIGH_IRQ_PRIORITY, mpsl_timer0_isr_wrapper,
-    //                    0);
-    // IRQ_DIRECT_CONNECT(RTC0_IRQn, MPSL_HIGH_IRQ_PRIORITY, mpsl_rtc0_isr_wrapper,
-    //                    0);
-    // IRQ_DIRECT_CONNECT(RADIO_IRQn, MPSL_HIGH_IRQ_PRIORITY, mpsl_radio_isr_wrapper,
-    //                    0);
+    mpsl_lib_init();
+
     checkError(sdc_init(&my_fault_handler));
     sdc_rand_source_t my_rand_source = {
         .rand_prio_low_get = rand_get,
