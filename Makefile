@@ -169,7 +169,6 @@ NETWORK_CORE_C_FILES += \
 	network_core/micropython/shared/runtime/interrupt_char.c \
 	network_core/micropython/shared/runtime/pyexec.c \
 	network_core/mphalport.c \
-	nrfx/drivers/src/nrfx_rtc.c \
 	nrfx/drivers/src/nrfx_spim.c \
 	nrfx/drivers/src/nrfx_twim.c \
 	nrfx/drivers/src/nrfx_rng.c \

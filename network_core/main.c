@@ -29,7 +29,7 @@
 #include "mphalport.h"
 #include "nrf.h"
 #include "nrfx_log.h"
-#include "nrfx_rtc.h"
+// #include "nrfx_rtc.h"
 #include "nrfx_spim.h"
 #include "nrfx_twim.h"
 #include "pinout.h"
@@ -49,7 +49,7 @@
 #include "mpsl.h"
 #include "nrf_errno.h"
 #define LOW_PRIORITY 0x0f
-#define MPSL_SWI SWI1_IRQn
+#define MPSL_SWI SWI0_IRQn
 // static const nrfx_rtc_t rtc_instance = NRFX_RTC_INSTANCE(0);
 static const nrfx_spim_t spi_instance = NRFX_SPIM_INSTANCE(0);
 static const nrfx_twim_t i2c_instance = NRFX_TWIM_INSTANCE(0);
@@ -75,9 +75,9 @@ void setup_bluetooth(void);
 //         MPSL_IRQ_RTC0_Handler();
 //     }
 // }
-void SWI1_IRQ_Handler()
+void SWI0_IRQ_Handler()
 {
-    NRFX_LOG("in SWI1_IRQHandler");
+    NRFX_LOG("in SWI0_IRQHandler");
     if (enable_mpsl)
     {
         // NRFX_LOG("in SWI1_IRQHandler");
@@ -97,7 +97,7 @@ int clock_irq_handler_wrapper()
 }
 void radio_irq_handler_wrapper()
 {
-    NRFX_LOG("in radio_irq_handler_wrapper");
+    // NRFX_LOG("in radio_irq_handler_wrapper");
     if (enable_mpsl)
     {
         // NRFX_LOG("in radio_irq_handler_wrapper");
@@ -106,17 +106,17 @@ void radio_irq_handler_wrapper()
 }
 void rtc_0_irq_handler_wrapper()
 {
-    NRFX_LOG("in RTC_IRQHandler");
+    // NRFX_LOG("in RTC_IRQHandler");
     if (enable_mpsl)
     {
-        NRFX_LOG("in RTC_IRQHandler");
+        // NRFX_LOG("in RTC_IRQHandler");
         MPSL_IRQ_RTC0_Handler();
     }
 }
 
 void timer_0_irq_handler_wrapper()
 {
-    NRFX_LOG("in timer_0_irq_handler_wrapper");
+    // NRFX_LOG("in timer_0_irq_handler_wrapper");
     if (enable_mpsl)
     {
         // NRFX_LOG("in timer_0_irq_handler_wrapper");
@@ -547,12 +547,19 @@ int main(void)
 {
     NRFX_LOG(RTT_CTRL_RESET RTT_CTRL_CLEAR);
     NRFX_LOG("MicroPython on Frame - " BUILD_VERSION " (" GIT_COMMIT ")");
-    NRFX_IRQ_ENABLE(CLOCK_POWER_IRQn);
+    // NRFX_IRQ_ENABLE(CLOCK_POWER_IRQn);
     // app_err(nrf_drv_swi_init());
     setup_network_core();
     setup_bluetooth();
     while (1)
     {
+        // NRFX_LOG("RADIO_IRQn enable %d", NVIC_GetEnableIRQ(RADIO_IRQn));             // is it enabled?
+        // NRFX_LOG("TIMER0_IRQn enable %d", NVIC_GetEnableIRQ(TIMER0_IRQn));           // is it enabled?
+        // NRFX_LOG("RTC0_IRQn enable %d", NVIC_GetEnableIRQ(RTC0_IRQn));               // is it enabled?
+        // NRFX_LOG("CLOCK_POWER_IRQn enable %d", NVIC_GetEnableIRQ(CLOCK_POWER_IRQn)); // is it enabled?
+        // NRFX_LOG("TIMER1_IRQn enable %d", NVIC_GetEnableIRQ(TIMER1_IRQn));           // is it enabled?
+        // NRFX_LOG("RADIO_IRQn pending %d", NVIC_GetPendingIRQ(RADIO_IRQn)); // is it about to fire?
+        // NRFX_LOG("RADIO_IRQn get active %d", NVIC_GetActive(RADIO_IRQn));
         if (mpsl_event_pending)
         {
             mpsl_low_priority_process();
@@ -658,22 +665,26 @@ static void mpsl_lib_init(void)
         .rc_ctiv = 0,
         .rc_temp_ctiv = 0,
         .skip_wait_lfclk_started = false};
-    NRFX_LOG("MPSL init starting");
-    enable_mpsl = true;
-    checkError(mpsl_init(&mpsl_clock_config, MPSL_SWI, mpsl_assert_handler));
-    NRFX_LOG("MPSL init done");
+
     /* Ensure IRQs are disabled before attaching. */
     // mpsl_irq_disable();
-    NRFX_IRQ_PRIORITY_SET(MPSL_SWI, LOW_PRIORITY);
-    // NRFX_IRQ_PRIORITY_SET(RTC0_IRQn, MPSL_HIGH_IRQ_PRIORITY);
-    // NRFX_IRQ_PRIORITY_SET(RADIO_IRQn, MPSL_HIGH_IRQ_PRIORITY);
-    // NRFX_IRQ_PRIORITY_SET(TIMER0_IRQn, MPSL_HIGH_IRQ_PRIORITY);
-    // NRFX_IRQ_PRIORITY_SET(TIMER1_IRQn, MPSL_HIGH_IRQ_PRIORITY);
-    NRFX_IRQ_ENABLE(MPSL_SWI);
+
+    NRFX_IRQ_PRIORITY_SET(RTC0_IRQn, MPSL_HIGH_IRQ_PRIORITY);
+    NRFX_IRQ_PRIORITY_SET(RADIO_IRQn, MPSL_HIGH_IRQ_PRIORITY);
+    NRFX_IRQ_PRIORITY_SET(TIMER0_IRQn, MPSL_HIGH_IRQ_PRIORITY);
+    NRFX_IRQ_PRIORITY_SET(TIMER1_IRQn, MPSL_HIGH_IRQ_PRIORITY);
+
     // NRFX_IRQ_ENABLE(TIMER0_IRQn);
     // NRFX_IRQ_ENABLE(RTC0_IRQn);
-    // NRFX_IRQ_ENABLE(RADIO_IRQn);
+    // NRFX_IRQ_ENABLE(RADIO_IRQn);s
     // NRFX_IRQ_ENABLE(TIMER1_IRQn);
+    NRFX_LOG("MPSL init starting");
+    NRFX_IRQ_PRIORITY_SET(MPSL_SWI, 4);
+    enable_mpsl = true;
+    checkError(mpsl_init(&mpsl_clock_config, MPSL_SWI, mpsl_assert_handler));
+
+    NRFX_IRQ_ENABLE(MPSL_SWI);
+    NRFX_LOG("MPSL init done");
 }
 void checkError(int32_t ret_code)
 {
@@ -696,11 +707,11 @@ void setup_bluetooth(void)
     // MPSL initialization
 
     mpsl_lib_init();
-    NVIC->STIR = SWI3_IRQn;                                     // Software-trigger an interrupt
-    NVIC_SetPendingIRQ(SWI3_IRQn);                              // Set interrupt flag
-    NRFX_LOG("swi3 enable %d", NVIC_GetEnableIRQ(SWI3_IRQn));   // is it enabled?
-    NRFX_LOG("swi3 pending %d", NVIC_GetPendingIRQ(SWI3_IRQn)); // is it about to fire?
-    NRFX_LOG("swi3 get active %d", NVIC_GetActive(SWI3_IRQn));
+    // NVIC->STIR = TIMER0_IRQn;                                            // Software-trigger an interrupt
+    // NVIC_SetPendingIRQ(TIMER0_IRQn);                                     // Set interrupt flag
+    // NRFX_LOG("TIMER0_IRQn enable %d", NVIC_GetEnableIRQ(TIMER0_IRQn));   // is it enabled?
+    // NRFX_LOG("TIMER0_IRQn pending %d", NVIC_GetPendingIRQ(TIMER0_IRQn)); // is it about to fire?
+    // NRFX_LOG("TIMER0_IRQn get active %d", NVIC_GetActive(TIMER0_IRQn));
     checkError(sdc_init(&my_fault_handler));
     sdc_rand_source_t my_rand_source = {
         .rand_prio_low_get = rand_get,
@@ -733,7 +744,7 @@ void setup_bluetooth(void)
     checkError(sdc_cfg_set(SDC_DEFAULT_RESOURCE_CFG_TAG, SDC_CFG_TYPE_EVENT_LENGTH, &cfg));
     cfg.adv_count.count = 1;
     checkError(sdc_cfg_set(SDC_DEFAULT_RESOURCE_CFG_TAG, SDC_CFG_TYPE_ADV_COUNT, &cfg));
-    cfg.adv_buffer_cfg.max_adv_data = SDC_DEFAULT_ADV_BUF_SIZE;
+    cfg.adv_buffer_cfg.max_adv_data = 37;
     checkError(sdc_cfg_set(SDC_DEFAULT_RESOURCE_CFG_TAG, SDC_CFG_TYPE_ADV_BUFFER_CFG, &cfg));
     cfg.scan_buffer_cfg.count = 3;
     checkError(sdc_cfg_set(SDC_DEFAULT_RESOURCE_CFG_TAG, SDC_CFG_TYPE_SCAN_BUFFER_CFG, &cfg));
@@ -761,51 +772,56 @@ void setup_bluetooth(void)
 
     checkError(sdc_enable(sdc_callback, sdc_mem));
     checkError(sdc_hci_cmd_cb_reset());
+    // while (true)
+    // {
     sdc_callback();
-    // sdc_hci_cmd_le_read_local_supported_features_return_t features;
-    // checkError(sdc_hci_cmd_le_read_local_supported_features(&features));
-    // NRFX_LOG("size of features %d", features.params.le_periodic_advertising);
-    // sdc_callback();
-    // sdc_hci_cmd_cb_set_event_mask_t evt_mask = {.raw = {0xde, 0x0b, 0x00, 0x00, 0x00, 0x80, 0x00, 0x00}};
-    // // evt_mask.params.
-    // checkError(sdc_hci_cmd_cb_set_event_mask(&evt_mask));
-    // sdc_callback();
-    // sdc_hci_cmd_le_set_random_address_t rand_address = {.random_address = {0xad, 0x4b, 0xe2, 0x43, 0x2d, 0xc0}};
-    // checkError(sdc_hci_cmd_le_set_random_address(&rand_address));
-    // sdc_callback();
-    // sdc_hci_cmd_le_set_adv_params_t adv_param = {
-    //     .adv_interval_min = 0x00a0,
-    //     .adv_interval_max = 0x00f0,
-    //     .adv_type = 0x00,
-    //     .own_address_type = 0x01,
-    //     .peer_address_type = 0x00,
-    //     .peer_address = {0, 0, 0, 0, 0, 0},
-    //     .adv_channel_map = 0x07,
-    //     .adv_filter_policy = 0x00};
-    // checkError(sdc_hci_cmd_le_set_adv_params(&adv_param));
-    // sdc_callback();
-    // sdc_hci_cmd_le_set_adv_data_t adv_data = {
-    //     .adv_data = {
-    //         0x0b, 0x02, 0x01, 0x06, 0x07, 0x03, 0x0d, 0x18,
-    //         0x0f, 0x18, 0x0a, 0x18, 0x00, 0x00, 0x00, 0x00,
-    //         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    //         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
-    //     .adv_data_length = 31};
-    // checkError(sdc_hci_cmd_le_set_adv_data(&adv_data));
-    // sdc_callback();
-    // sdc_hci_cmd_le_set_scan_response_data_t scan_response = {
-    //     .scan_response_data = {
-    //         0x19, 0x18, 0x09, 0x5a, 0x65, 0x70, 0x68, 0x79,
-    //         0x72, 0x20, 0x48, 0x65, 0x61, 0x72, 0x74, 0x72,
-    //         0x61, 0x74, 0x65, 0x20, 0x53, 0x00, 0x00, 0x00,
-    //         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
-    //     .scan_response_data_length = 31};
-    // checkError(sdc_hci_cmd_le_set_scan_response_data(&scan_response));
-    // sdc_callback();
-    // sdc_hci_cmd_le_set_adv_enable_t adv_enable = {.adv_enable = 0x01};
+    // }
 
-    // checkError(sdc_hci_cmd_le_set_adv_enable(&adv_enable));
     // sdc_callback();
+    sdc_hci_cmd_le_read_local_supported_features_return_t features;
+    checkError(sdc_hci_cmd_le_read_local_supported_features(&features));
+    NRFX_LOG("size of features %d", features.params.le_periodic_advertising);
+    sdc_callback();
+    sdc_hci_cmd_cb_set_event_mask_t evt_mask = {.raw = {0xde, 0x0b, 0x00, 0x00, 0x00, 0x80, 0x00, 0x00}};
+    // evt_mask.params.
+    checkError(sdc_hci_cmd_cb_set_event_mask(&evt_mask));
+    sdc_callback();
+    sdc_hci_cmd_le_set_random_address_t rand_address = {.random_address = {0xad, 0x4b, 0xe2, 0x43, 0x2d, 0xc0}};
+    checkError(sdc_hci_cmd_le_set_random_address(&rand_address));
+    sdc_callback();
+    sdc_hci_cmd_le_set_adv_params_t adv_param = {
+        .adv_interval_min = 0x00a0,
+        .adv_interval_max = 0x00f0,
+        .adv_type = 0x00,
+        .own_address_type = 0x01,
+        .peer_address_type = 0x00,
+        .peer_address = {0, 0, 0, 0, 0, 0},
+        .adv_channel_map = 0x07,
+        .adv_filter_policy = 0x00};
+    checkError(sdc_hci_cmd_le_set_adv_params(&adv_param));
+    sdc_callback();
+    sdc_hci_cmd_le_set_adv_data_t adv_data = {
+        .adv_data = {
+            0x0b, 0x02, 0x01, 0x06, 0x07, 0x03, 0x0d, 0x18,
+            0x0f, 0x18, 0x0a, 0x18, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x0B, 0x09, 'f', 'r', 'a', 'm', 'e'},
+        .adv_data_length = 31};
+    checkError(sdc_hci_cmd_le_set_adv_data(&adv_data));
+    sdc_callback();
+    sdc_hci_cmd_le_set_scan_response_data_t scan_response = {
+        .scan_response_data = {
+            0x19, 0x18, 0x09, 0x5a, 0x65, 0x70, 0x68, 0x79,
+            0x72, 0x20, 0x48, 0x65, 0x61, 0x72, 0x74, 0x72,
+            0x61, 0x74, 0x65, 0x20, 0x53, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
+        .scan_response_data_length = 31};
+    checkError(sdc_hci_cmd_le_set_scan_response_data(&scan_response));
+    sdc_callback();
+    sdc_hci_cmd_le_set_adv_enable_t adv_enable = {.adv_enable = 0x01};
+
+    checkError(sdc_hci_cmd_le_set_adv_enable(&adv_enable));
+    sdc_callback();
     NRFX_LOG("BLE  setup done");
     return;
 }

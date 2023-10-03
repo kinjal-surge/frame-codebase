@@ -125,14 +125,14 @@ static void frame_setup_application_core(void)
     // Configure the clock sources
     {
         // // High frequency crystal uses internally configurable capacitors
-        uint32_t capacitance_pf = 8;
-        int32_t slope = NRF_FICR->XOSC32MTRIM & 0x1F;
-        int32_t trim = (NRF_FICR->XOSC32MTRIM >> 5) & 0x1F;
+        // uint32_t capacitance_pf = 8;
+        // int32_t slope = NRF_FICR->XOSC32MTRIM & 0x1F;
+        // int32_t trim = (NRF_FICR->XOSC32MTRIM >> 5) & 0x1F;
 
-        nrf_oscillators_hfxo_cap_set(
-            NRF_OSCILLATORS,
-            true,
-            (1 + slope / 16) * (capacitance_pf * 2 - 14) + trim);
+        // nrf_oscillators_hfxo_cap_set(
+        //     NRF_OSCILLATORS,
+        //     true,
+        //     (1 + slope / 16) * (capacitance_pf * 2 - 14) + trim);
 
         nrf_clock_lf_src_set(NRF_CLOCK, NRFX_CLOCK_CONFIG_LF_SRC);
         nrf_clock_hf_src_set(NRF_CLOCK, NRF_CLOCK_HFCLK_HIGH_ACCURACY);
