@@ -174,6 +174,8 @@ NETWORK_CORE_C_FILES += \
 	nrfx/drivers/src/nrfx_rng.c \
 	nrfx/drivers/src/nrfx_systick.c \
 	network_core/rng_helper.c \
+	network_core/hci_internal.c \
+	network_core/hci_driver.c \
 	nrfx/mdk/gcc_startup_nrf5340_network.S \
 	nrfx/mdk/system_nrf5340_network.c \
 	segger/SEGGER_RTT_printf.c \

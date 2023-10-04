@@ -7,6 +7,14 @@
 /** @file
  *  @brief Internal HCI interface
  */
+
+#include <sdc_hci.h>
+#include <sdc_hci_cmd_controller_baseband.h>
+#include <sdc_hci_cmd_info_params.h>
+#include <sdc_hci_cmd_le.h>
+#include <sdc_hci_cmd_link_control.h>
+#include <sdc_hci_cmd_status_params.h>
+#include <sdc_hci_vs.h>
 #include "nrf.h"
 #include "nrfx_log.h"
 #include <stdint.h>
@@ -263,4 +271,12 @@ int hci_internal_user_cmd_handler_register(const hci_internal_user_cmd_handler_t
  */
 int hci_internal_msg_get(uint8_t *msg_out, sdc_hci_msg_type_t *msg_type_out);
 void hci_driver_receive_process(void);
+
+/**
+ * Initialize softdevice controller with MPSL and do a reset
+ */
 int32_t ble_init(void);
+/**
+ * Start ble advertise
+ */
+void ble_advertise(void);

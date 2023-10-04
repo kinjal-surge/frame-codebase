@@ -8,6 +8,11 @@
 #include <sdc_soc.h>
 #include <sdc_hci.h>
 #include <sdc_hci_vs.h>
+#include "sdc_hci_cmd_controller_baseband.h"
+#include "sdc_hci_cmd_info_params.h"
+#include "sdc_hci_cmd_le.h"
+#include "sdc_hci_cmd_link_control.h"
+#include "sdc_hci_cmd_status_params.h"
 #include "hci_internal.h"
 #include "rng_helper.h"
 #include "mpsl.h"
@@ -15,129 +20,18 @@
 #define BT_BUF_EVT_RX_SIZE BT_BUF_EVT_SIZE(68)
 #define BT_BUF_RX_SIZE BT_BUF_EVT_SIZE(68)
 #define MPSL_SWI SWI0_IRQn
-#if defined(CONFIG_BT_CONN) && defined(CONFIG_BT_CENTRAL)
-
-/** Data size needed for HCI ACL, HCI ISO or Event RX buffers */
-
-#if CONFIG_BT_MAX_CONN > 1
-#define SDC_CENTRAL_COUNT (CONFIG_BT_MAX_CONN - CONFIG_BT_CTLR_SDC_PERIPHERAL_COUNT)
-#else
-/* Allow the case where BT_MAX_CONN, central and peripheral counts are 1. This
- * way we avoid wasting memory in the host if the device will only use one role
- * at a time.
- */
-#define SDC_CENTRAL_COUNT 1
-#endif /* CONFIG_BT_MAX_CONN > 1 */
-
-#else
-#define SDC_CENTRAL_COUNT 0
-#endif /* defined(CONFIG_BT_CONN) && defined(CONFIG_BT_CENTRAL) */
-#if defined(CONFIG_BT_BROADCASTER)
-#if defined(CONFIG_BT_CTLR_ADV_EXT)
-#define SDC_ADV_SET_COUNT CONFIG_BT_CTLR_ADV_SET
-#define SDC_ADV_BUF_SIZE CONFIG_BT_CTLR_ADV_DATA_LEN_MAX
-#else
-#define SDC_ADV_SET_COUNT 1
-#define SDC_ADV_BUF_SIZE SDC_DEFAULT_ADV_BUF_SIZE
-#endif
-#define SDC_ADV_SET_MEM_SIZE (SDC_ADV_SET_COUNT * SDC_MEM_PER_ADV_SET(SDC_ADV_BUF_SIZE))
-#else
-#define SDC_ADV_SET_COUNT 0
-#define SDC_ADV_SET_MEM_SIZE 0
-#endif
-
-#if defined(CONFIG_BT_PER_ADV)
-#if defined(CONFIG_BT_CTLR_SDC_PAWR_ADV)
-#define SDC_PERIODIC_ADV_COUNT (CONFIG_BT_EXT_ADV_MAX_ADV_SET - CONFIG_BT_CTLR_SDC_PAWR_ADV_COUNT)
-#else
-#define SDC_PERIODIC_ADV_COUNT CONFIG_BT_EXT_ADV_MAX_ADV_SET
-#endif
-#define SDC_PERIODIC_ADV_MEM_SIZE \
-    (SDC_PERIODIC_ADV_COUNT * SDC_MEM_PER_PERIODIC_ADV_SET(CONFIG_BT_CTLR_ADV_DATA_LEN_MAX))
-#else
-#define SDC_PERIODIC_ADV_COUNT 0
-#define SDC_PERIODIC_ADV_MEM_SIZE 0
-#endif
-
-#if defined(CONFIG_BT_CTLR_SDC_PAWR_ADV)
-#define PERIODIC_ADV_RSP_ENABLE_FAILURE_REPORTING \
-    IS_ENABLED(CONFIG_BT_CTLR_SDC_PERIODIC_ADV_RSP_RX_FAILURE_REPORTING)
-#define SDC_PERIODIC_ADV_RSP_MEM_SIZE                                                       \
-    (CONFIG_BT_CTLR_SDC_PAWR_ADV_COUNT *                                                    \
-     SDC_MEM_PER_PERIODIC_ADV_RSP_SET(CONFIG_BT_CTLR_ADV_DATA_LEN_MAX,                      \
-                                      CONFIG_BT_CTLR_SDC_PERIODIC_ADV_RSP_TX_BUFFER_COUNT,  \
-                                      CONFIG_BT_CTLR_SDC_PERIODIC_ADV_RSP_RX_BUFFER_COUNT,  \
-                                      CONFIG_BT_CTLR_SDC_PERIODIC_ADV_RSP_TX_MAX_DATA_SIZE, \
-                                      PERIODIC_ADV_RSP_ENABLE_FAILURE_REPORTING))
-#else
-#define SDC_PERIODIC_ADV_RSP_MEM_SIZE 0
-#endif
-
-#if defined(CONFIG_BT_CTLR_SDC_PAWR_SYNC) || defined(CONFIG_BT_PER_ADV_SYNC)
-#define SDC_PERIODIC_ADV_SYNC_COUNT CONFIG_BT_PER_ADV_SYNC_MAX
-#define SDC_PERIODIC_ADV_LIST_MEM_SIZE \
-    SDC_MEM_PERIODIC_ADV_LIST(CONFIG_BT_CTLR_SYNC_PERIODIC_ADV_LIST_SIZE)
-#else
-#define SDC_PERIODIC_ADV_SYNC_COUNT 0
-#define SDC_PERIODIC_ADV_LIST_MEM_SIZE 0
-#endif
-
-#if defined(CONFIG_BT_CTLR_SDC_PAWR_SYNC)
-#define SDC_PERIODIC_SYNC_MEM_SIZE                                                       \
-    (SDC_PERIODIC_ADV_SYNC_COUNT *                                                       \
-     SDC_MEM_PER_PERIODIC_SYNC_RSP(CONFIG_BT_CTLR_SDC_PERIODIC_SYNC_RSP_TX_BUFFER_COUNT, \
-                                   CONFIG_BT_CTLR_SDC_PERIODIC_SYNC_BUFFER_COUNT))
-#elif defined(CONFIG_BT_PER_ADV_SYNC)
-#define SDC_PERIODIC_SYNC_MEM_SIZE \
-    (SDC_PERIODIC_ADV_SYNC_COUNT * \
-     SDC_MEM_PER_PERIODIC_SYNC(CONFIG_BT_CTLR_SDC_PERIODIC_SYNC_BUFFER_COUNT))
-#else
-#define SDC_PERIODIC_SYNC_MEM_SIZE 0
-#endif
-
-#if defined(CONFIG_BT_OBSERVER)
-#if defined(CONFIG_BT_CTLR_ADV_EXT)
-#define SDC_SCAN_BUF_SIZE SDC_MEM_SCAN_BUFFER_EXT(CONFIG_BT_CTLR_SDC_SCAN_BUFFER_COUNT)
-#else
-#define SDC_SCAN_BUF_SIZE SDC_MEM_SCAN_BUFFER(CONFIG_BT_CTLR_SDC_SCAN_BUFFER_COUNT)
-#endif
-#else
-#define SDC_SCAN_BUF_SIZE 0
-#endif
-
-#ifdef CONFIG_BT_CTLR_DATA_LENGTH_MAX
-#define MAX_TX_PACKET_SIZE CONFIG_BT_CTLR_DATA_LENGTH_MAX
-#define MAX_RX_PACKET_SIZE CONFIG_BT_CTLR_DATA_LENGTH_MAX
-#else
-#define MAX_TX_PACKET_SIZE SDC_DEFAULT_TX_PACKET_SIZE
-#define MAX_RX_PACKET_SIZE SDC_DEFAULT_RX_PACKET_SIZE
-#endif
-
-#define CENTRAL_MEM_SIZE                                              \
-    (SDC_MEM_PER_CENTRAL_LINK(MAX_TX_PACKET_SIZE, MAX_RX_PACKET_SIZE, \
-                              CONFIG_BT_CTLR_SDC_TX_PACKET_COUNT,     \
-                              CONFIG_BT_CTLR_SDC_RX_PACKET_COUNT) +   \
-     SDC_MEM_CENTRAL_LINKS_SHARED)
-
-#define PERIPHERAL_MEM_SIZE                                              \
-    (SDC_MEM_PER_PERIPHERAL_LINK(MAX_TX_PACKET_SIZE, MAX_RX_PACKET_SIZE, \
-                                 CONFIG_BT_CTLR_SDC_TX_PACKET_COUNT,     \
-                                 CONFIG_BT_CTLR_SDC_RX_PACKET_COUNT) +   \
-     SDC_MEM_PERIPHERAL_LINKS_SHARED)
-
-#define PERIPHERAL_COUNT CONFIG_BT_CTLR_SDC_PERIPHERAL_COUNT
-
-#define SDC_FAL_MEM_SIZE SDC_MEM_FAL(CONFIG_BT_CTLR_FAL_SIZE)
-
-#define SDC_EXTRA_MEMORY CONFIG_BT_SDC_ADDITIONAL_MEMORY
-
-#define MEMPOOL_SIZE                                                                          \
-    ((PERIPHERAL_COUNT * PERIPHERAL_MEM_SIZE) + (SDC_CENTRAL_COUNT * CENTRAL_MEM_SIZE) +      \
-     (SDC_ADV_SET_MEM_SIZE) + (SDC_PERIODIC_ADV_MEM_SIZE) + (SDC_PERIODIC_ADV_RSP_MEM_SIZE) + \
-     (SDC_PERIODIC_SYNC_MEM_SIZE) + (SDC_PERIODIC_ADV_LIST_MEM_SIZE) + (SDC_SCAN_BUF_SIZE) +  \
-     (SDC_FAL_MEM_SIZE) + (SDC_EXTRA_MEMORY))
-
+volatile uint8_t rng = 0;
 static __aligned(8) uint8_t sdc_mempool[2000];
+
+void check_error(int32_t ret_code)
+{
+    // NRFX_LOG("Response: %d", ret_code);
+    if (ret_code == -NRF_EINVAL || ret_code == -NRF_EPERM || ret_code == -NRF_EOPNOTSUPP || ret_code == -NRF_ENOMEM)
+    {
+        app_err(ret_code);
+    }
+    return;
+}
 
 void sdc_assertion_handler(const char *file, const uint32_t line)
 {
@@ -147,18 +41,18 @@ void sdc_assertion_handler(const char *file, const uint32_t line)
     // }
 }
 
-static int cmd_handle(struct net_buf cmd)
-{
-    int errcode = hci_internal_cmd_put(cmd.data);
-    if (errcode)
-    {
-        return errcode;
-    }
+// static int cmd_handle(struct net_buf cmd)
+// {
+//     int errcode = hci_internal_cmd_put(cmd.data);
+//     if (errcode)
+//     {
+//         return errcode;
+//     }
 
-    hci_driver_receive_process();
+//     hci_driver_receive_process();
 
-    return 0;
-}
+//     return 0;
+// }
 
 // static int acl_handle(struct net_buf *acl)
 // {
@@ -177,9 +71,9 @@ static int cmd_handle(struct net_buf cmd)
 static void data_packet_process(uint8_t *hci_buf)
 {
     // struct net_buf *data_buf = bt_buf_get_rx(BT_BUF_ACL_IN, K_FOREVER);
-    struct bt_hci_acl_hdr *hdr = (void *)hci_buf;
-    uint16_t hf, handle, len;
-    uint8_t flags, pb, bc;
+    // struct bt_hci_acl_hdr *hdr = (void *)hci_buf;
+    // uint16_t hf, handle, len;
+    // uint8_t flags, pb, bc;
     // TODO  proceess and return data
 
     // if (!data_buf)
@@ -267,7 +161,7 @@ static void event_packet_process(uint8_t *hci_buf)
     }
     else if (hdr->evt == BT_HCI_EVT_CMD_STATUS)
     {
-        struct bt_hci_evt_cmd_status *cs = (void *)&hci_buf[2];
+        // struct bt_hci_evt_cmd_status *cs = (void *)&hci_buf[2];
         // uint16_t opcode = sys_le16_to_cpu(cs->opcode);
 
         NRFX_LOG("Command Status ");
@@ -300,6 +194,7 @@ static bool fetch_and_process_hci_msg(uint8_t *p_hci_buffer)
     int errcode;
     sdc_hci_msg_type_t msg_type;
     errcode = hci_internal_msg_get(p_hci_buffer, &msg_type);
+    NRFX_LOG("msg_type 0x%02x, errcode: %d", msg_type, errcode);
     if (errcode)
     {
         return false;
@@ -373,9 +268,6 @@ static int configure_memory_usage(void)
     if (required_memory > sizeof(sdc_mempool))
     {
         NRFX_LOG("Allocated memory too low: %u < %u", sizeof(sdc_mempool), required_memory);
-        // k_panic();
-        /* No return from k_panic(). */
-        return -NRF_ENOMEM;
     }
 
     return 0;
@@ -399,7 +291,37 @@ static void mpsl_assert_handler(const char *const file, const uint32_t line)
 {
     NRFX_LOG("mpsl_assert_error: %s:%d", file, line);
 };
+void mpsl_low_priority_handler()
+{
+    // NRFX_LOG("in SWI0_IRQHandler");
+    mpsl_low_priority_process();
+    NRFX_IRQ_PENDING_CLEAR(MPSL_SWI);
+}
 
+int clock_irq_handler_wrapper()
+{
+    // NRFX_LOG("in clock_irq_handler_wrapper");
+    MPSL_IRQ_CLOCK_Handler();
+    return 0;
+}
+
+void radio_irq_handler_wrapper()
+{
+    // NRFX_LOG("in radio_irq_handler_wrapper");
+    MPSL_IRQ_RADIO_Handler();
+}
+
+void rtc_0_irq_handler_wrapper()
+{
+    // NRFX_LOG("in RTC_IRQHandler")
+    MPSL_IRQ_RTC0_Handler();
+}
+
+void timer_0_irq_handler_wrapper()
+{
+
+    MPSL_IRQ_TIMER0_Handler();
+}
 static void mpsl_lib_init(void)
 {
 
@@ -414,16 +336,54 @@ static void mpsl_lib_init(void)
     NRFX_IRQ_PRIORITY_SET(RADIO_IRQn, MPSL_HIGH_IRQ_PRIORITY);
     NRFX_IRQ_PRIORITY_SET(TIMER0_IRQn, MPSL_HIGH_IRQ_PRIORITY);
     NRFX_IRQ_PRIORITY_SET(TIMER1_IRQn, MPSL_HIGH_IRQ_PRIORITY);
-    checkError(mpsl_init(&mpsl_clock_config, MPSL_SWI, mpsl_assert_handler));
+    check_error(mpsl_init(&mpsl_clock_config, MPSL_SWI, mpsl_assert_handler));
     NRFX_IRQ_PRIORITY_SET(MPSL_SWI, 4);
     NRFX_IRQ_ENABLE(MPSL_SWI);
 }
-void advertise()
+void ble_advertise()
 {
+    sdc_hci_cmd_le_set_random_address_t rand_address = {.random_address = {0xad, 0x4b, 0xe2, 0x43, 0x2d, 0xc0}};
+    check_error(sdc_hci_cmd_le_set_random_address(&rand_address));
+    hci_driver_receive_process();
+    sdc_hci_cmd_le_set_adv_params_t adv_param = {
+        .adv_interval_min = 0x00a0,
+        .adv_interval_max = 0x00f0,
+        .adv_type = 0x00,
+        .own_address_type = 0x01,
+        .peer_address_type = 0x00,
+        .peer_address = {0, 0, 0, 0, 0, 0},
+        .adv_channel_map = 0x07,
+        .adv_filter_policy = 0x00};
+    check_error(sdc_hci_cmd_le_set_adv_params(&adv_param));
+    hci_driver_receive_process();
+    sdc_hci_cmd_le_set_adv_data_t adv_data = {
+        .adv_data = {
+            //  Len   type  data
+            0x02, 0x01, 0x06,
+            0x06, 0x09, 'f', 'r', 'a', 'm', 'e',
+            0x11, 0x07, 0x9E, 0xCA, 0xDC, 0x24, 0x0E, 0xE5, 0xA9, 0xE0, 0x93, 0xF3, 0xA3, 0xB5, 0x01, 0x00, 0x40, 0x6E},
+        .adv_data_length = 28};
+    check_error(sdc_hci_cmd_le_set_adv_data(&adv_data));
+    hci_driver_receive_process();
+    // sdc_hci_cmd_le_set_scan_response_data_t scan_response = {
+    //     .scan_response_data = {
+    //         0x19, 0x18, 0x09, 0x5a, 0x65, 0x70, 0x68, 0x79,
+    //         0x72, 0x20, 0x48, 0x65, 0x61, 0x72, 0x74, 0x72,
+    //         0x61, 0x74, 0x65, 0x20, 0x53, 0x00, 0x00, 0x00,
+    //         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
+    //     .scan_response_data_length = 31};
+    // NRFX_LOG("BLE  set scan data");
+    // checkError(sdc_hci_cmd_le_set_scan_response_data(&scan_response));
+    // sdc_callback();
+    sdc_hci_cmd_le_set_adv_enable_t adv_enable = {.adv_enable = 0x01};
+    // NRFX_LOG("BLE  ad enable");
+    check_error(sdc_hci_cmd_le_set_adv_enable(&adv_enable));
 }
 int32_t ble_init(void)
 {
 
+    nrfx_rng_config_t rng_config = NRFX_RNG_DEFAULT_CONFIG;
+    app_err(nrfx_rng_init(&rng_config, rng_evt_handler));
     int err = 0;
     sdc_rand_source_t rand_functions = {.rand_prio_low_get = rand_get,
                                         .rand_prio_high_get = rand_get,
