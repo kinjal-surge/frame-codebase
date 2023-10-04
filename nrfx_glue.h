@@ -36,6 +36,7 @@
 #define nrfx_ipc_irq_handler IPC_IRQHandler
 // #define nrfx_rtc_0_irq_handler RTC0_IRQHandler
 #define nrfx_rng_irq_handler RNG_IRQHandler
+#define mpsl_low_priority_handler SWI0_IRQHandler
 #define rtc_0_irq_handler_wrapper RTC0_IRQHandler
 #define timer_0_irq_handler_wrapper TIMER0_IRQHandler
 #define radio_irq_handler_wrapper RADIO_IRQHandler

@@ -58,7 +58,6 @@ struct bt_buf_data
 {
     uint8_t type;
 };
-
 struct net_buf_simple
 {
     /** Pointer to the start of data in the buffer. */

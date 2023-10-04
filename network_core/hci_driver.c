@@ -14,7 +14,9 @@
 /** Data size needed for HCI Event RX buffers */
 #define BT_BUF_EVT_RX_SIZE BT_BUF_EVT_SIZE(68)
 #define BT_BUF_RX_SIZE BT_BUF_EVT_SIZE(68)
+#define MPSL_SWI SWI0_IRQn
 #if defined(CONFIG_BT_CONN) && defined(CONFIG_BT_CENTRAL)
+
 /** Data size needed for HCI ACL, HCI ISO or Event RX buffers */
 
 #if CONFIG_BT_MAX_CONN > 1
@@ -137,14 +139,12 @@
 
 static __aligned(8) uint8_t sdc_mempool[2000];
 
-void sdc_assertion_handler(const char *const file, const uint32_t line)
+void sdc_assertion_handler(const char *file, const uint32_t line)
 {
-    NRFX_LOG("SoftDevice Controller ASSERT: %d", line);
-}
-
-static inline void receive_signal_raise(void)
-{
-    hci_driver_receive_process();
+    // NRFX_LOG("SoftDevice Controller fault: file=%s, line=%lu\n", file, line);
+    // for (;;)
+    // {
+    // }
 }
 
 static int cmd_handle(struct net_buf cmd)
@@ -155,40 +155,32 @@ static int cmd_handle(struct net_buf cmd)
         return errcode;
     }
 
-    receive_signal_raise();
+    hci_driver_receive_process();
 
     return 0;
 }
 
-#if defined(CONFIG_BT_CONN)
-static int acl_handle(struct net_buf *acl)
-{
-    NRFX_LOG("");
+// static int acl_handle(struct net_buf *acl)
+// {
 
-    int errcode = MULTITHREADING_LOCK_ACQUIRE();
+//      int32_t   errcode = sdc_hci_data_put(acl->data);
 
-    if (!errcode)
-    {
-        errcode = sdc_hci_data_put(acl->data);
-        MULTITHREADING_LOCK_RELEASE();
+//     if (errcode)
+//     {
+//         /* Likely buffer overflow event */
+//         hci_driver_receive_process();
+//     }
 
-        if (errcode)
-        {
-            /* Likely buffer overflow event */
-            receive_signal_raise();
-        }
-    }
-
-    return errcode;
-}
-#endif
+//     return errcode;
+// }
 
 static void data_packet_process(uint8_t *hci_buf)
 {
     // struct net_buf *data_buf = bt_buf_get_rx(BT_BUF_ACL_IN, K_FOREVER);
-    // struct bt_hci_acl_hdr *hdr = (void *)hci_buf;
-    // uint16_t hf, handle, len;
-    // uint8_t flags, pb, bc;
+    struct bt_hci_acl_hdr *hdr = (void *)hci_buf;
+    uint16_t hf, handle, len;
+    uint8_t flags, pb, bc;
+    // TODO  proceess and return data
 
     // if (!data_buf)
     // {
@@ -196,8 +188,8 @@ static void data_packet_process(uint8_t *hci_buf)
     //     return;
     // }
 
-    // len = sys_le16_to_cpu(hdr->len);
-    // hf = sys_le16_to_cpu(hdr->handle);
+    // len = hdr->len;
+    // hf = hdr->handle;
     // handle = bt_acl_handle(hf);
     // flags = bt_acl_flags(hf);
     // pb = bt_acl_flags_pb(flags);
@@ -256,10 +248,7 @@ static void data_packet_process(uint8_t *hci_buf)
 
 static void event_packet_process(uint8_t *hci_buf)
 {
-    // bool discardable = event_packet_is_discardable(hci_buf);
     struct bt_hci_evt_hdr *hdr = (void *)hci_buf;
-    // struct net_buf *evt_buf;
-
     if (hdr->evt == BT_HCI_EVT_LE_META_EVENT)
     {
         struct bt_hci_evt_le_meta_event *me = (void *)&hci_buf[2];
@@ -278,7 +267,7 @@ static void event_packet_process(uint8_t *hci_buf)
     }
     else if (hdr->evt == BT_HCI_EVT_CMD_STATUS)
     {
-        // struct bt_hci_evt_cmd_status *cs = (void *)&hci_buf[2];
+        struct bt_hci_evt_cmd_status *cs = (void *)&hci_buf[2];
         // uint16_t opcode = sys_le16_to_cpu(cs->opcode);
 
         NRFX_LOG("Command Status ");
@@ -287,7 +276,7 @@ static void event_packet_process(uint8_t *hci_buf)
     {
         NRFX_LOG("Event (0x%02x) len %u", hdr->evt, hdr->len);
     }
-
+    //  TODO call receive with ble event
     // evt_buf = bt_buf_get_evt(hdr->evt, discardable, discardable ? K_NO_WAIT : K_FOREVER);
 
     // if (!evt_buf)
@@ -310,14 +299,7 @@ static bool fetch_and_process_hci_msg(uint8_t *p_hci_buffer)
 {
     int errcode;
     sdc_hci_msg_type_t msg_type;
-
-    // errcode = MULTITHREADING_LOCK_ACQUIRE();
-    if (!errcode)
-    {
-        errcode = sdc_hci_get(p_hci_buffer, &msg_type);
-        // MULTITHREADING_LOCK_RELEASE();
-    }
-
+    errcode = hci_internal_msg_get(p_hci_buffer, &msg_type);
     if (errcode)
     {
         return false;
@@ -341,64 +323,19 @@ static bool fetch_and_process_hci_msg(uint8_t *p_hci_buffer)
 
 void hci_driver_receive_process(void)
 {
-    static uint8_t hci_buf[68];
+    static uint8_t hci_buf[HCI_MSG_BUFFER_MAX_SIZE];
 
-    if (fetch_and_process_hci_msg(&hci_buf[0]))
-    {
-        /* Let other threads of same priority run in between. */
-        receive_signal_raise();
-    }
+    fetch_and_process_hci_msg(&hci_buf[0]);
 }
-
-// static void receive_work_handler()
-// {
-//     // ARG_UNUSED(work);
-
-//     hci_driver_receive_process();
-// }
 
 static int configure_supported_features(void)
 {
-    int err;
-
-    err = sdc_support_adv();
-    if (err)
-    {
-        return -NRF_EOPNOTSUPP;
-    }
-
-    err = sdc_support_peripheral();
-    if (err)
-    {
-        return -NRF_EOPNOTSUPP;
-    }
-
-    err = sdc_support_dle_peripheral();
-    if (err)
-    {
-        return -NRF_EOPNOTSUPP;
-    }
-    err = sdc_support_le_2m_phy();
-    if (err)
-    {
-        return -NRF_EOPNOTSUPP;
-    }
-    err = sdc_support_le_coded_phy();
-    if (err)
-    {
-        return -NRF_EOPNOTSUPP;
-    }
-    err = sdc_support_phy_update_central();
-    if (err)
-    {
-        return -NRF_EOPNOTSUPP;
-    }
-    err = sdc_support_phy_update_peripheral();
-    if (err)
-    {
-        return -NRF_EOPNOTSUPP;
-    }
-
+    check_error(sdc_support_adv());
+    check_error(sdc_support_peripheral());
+    check_error(sdc_support_dle_peripheral());
+    check_error(sdc_support_le_2m_phy());
+    check_error(sdc_support_le_coded_phy());
+    check_error(sdc_support_phy_update_peripheral());
     return 0;
 }
 
@@ -408,65 +345,28 @@ static int configure_memory_usage(void)
     sdc_cfg_t cfg;
 
     cfg.central_count.count = 0;
-
-    /* NOTE: sdc_cfg_set() returns a negative errno on error. */
-    required_memory =
-        sdc_cfg_set(SDC_DEFAULT_RESOURCE_CFG_TAG, SDC_CFG_TYPE_CENTRAL_COUNT, &cfg);
-    if (required_memory < 0)
-    {
-        return required_memory;
-    }
+    required_memory = sdc_cfg_set(SDC_DEFAULT_RESOURCE_CFG_TAG, SDC_CFG_TYPE_CENTRAL_COUNT, &cfg);
 
     cfg.peripheral_count.count = 1;
-
-    required_memory =
-        sdc_cfg_set(SDC_DEFAULT_RESOURCE_CFG_TAG, SDC_CFG_TYPE_PERIPHERAL_COUNT, &cfg);
-    if (required_memory < 0)
-    {
-        return required_memory;
-    }
+    required_memory = sdc_cfg_set(SDC_DEFAULT_RESOURCE_CFG_TAG, SDC_CFG_TYPE_PERIPHERAL_COUNT, &cfg);
 
     cfg.fal_size = 8;
     required_memory = sdc_cfg_set(SDC_DEFAULT_RESOURCE_CFG_TAG, SDC_CFG_TYPE_FAL_SIZE, &cfg);
-    if (required_memory < 0)
-    {
-        return required_memory;
-    }
 
-    cfg.buffer_cfg.rx_packet_size = MAX_RX_PACKET_SIZE;
-    cfg.buffer_cfg.tx_packet_size = MAX_TX_PACKET_SIZE;
+    cfg.buffer_cfg.rx_packet_size = 27;
+    cfg.buffer_cfg.tx_packet_size = 27;
     cfg.buffer_cfg.rx_packet_count = 2;
-    cfg.buffer_cfg.tx_packet_count = 2;
-
+    cfg.buffer_cfg.tx_packet_count = 3;
     required_memory = sdc_cfg_set(SDC_DEFAULT_RESOURCE_CFG_TAG, SDC_CFG_TYPE_BUFFER_CFG, &cfg);
-    if (required_memory < 0)
-    {
-        return required_memory;
-    }
 
     cfg.event_length.event_length_us = 7500;
-    required_memory =
-        sdc_cfg_set(SDC_DEFAULT_RESOURCE_CFG_TAG, SDC_CFG_TYPE_EVENT_LENGTH, &cfg);
-    if (required_memory < 0)
-    {
-        return required_memory;
-    }
+    required_memory = sdc_cfg_set(SDC_DEFAULT_RESOURCE_CFG_TAG, SDC_CFG_TYPE_EVENT_LENGTH, &cfg);
 
     cfg.adv_count.count = 1;
-
     required_memory = sdc_cfg_set(SDC_DEFAULT_RESOURCE_CFG_TAG, SDC_CFG_TYPE_ADV_COUNT, &cfg);
-    if (required_memory < 0)
-    {
-        return required_memory;
-    }
-    cfg.adv_buffer_cfg.max_adv_data = SDC_DEFAULT_ADV_BUF_SIZE;
 
-    required_memory =
-        sdc_cfg_set(SDC_DEFAULT_RESOURCE_CFG_TAG, SDC_CFG_TYPE_ADV_BUFFER_CFG, &cfg);
-    if (required_memory < 0)
-    {
-        return required_memory;
-    }
+    cfg.adv_buffer_cfg.max_adv_data = 31;
+    required_memory = sdc_cfg_set(SDC_DEFAULT_RESOURCE_CFG_TAG, SDC_CFG_TYPE_ADV_BUFFER_CFG, &cfg);
 
     NRFX_LOG("BT mempool size: %u, required: %u", sizeof(sdc_mempool), required_memory);
 
@@ -495,41 +395,49 @@ static int configure_memory_usage(void)
 
 //     return err;
 // }
+static void mpsl_assert_handler(const char *const file, const uint32_t line)
+{
+    NRFX_LOG("mpsl_assert_error: %s:%d", file, line);
+};
 
+static void mpsl_lib_init(void)
+{
+
+    mpsl_clock_lfclk_cfg_t mpsl_clock_config = {
+        .source = MPSL_CLOCK_LF_SRC_SYNTH,
+        .accuracy_ppm = 50,
+        .rc_ctiv = 0,
+        .rc_temp_ctiv = 0,
+        .skip_wait_lfclk_started = false};
+
+    NRFX_IRQ_PRIORITY_SET(RTC0_IRQn, MPSL_HIGH_IRQ_PRIORITY);
+    NRFX_IRQ_PRIORITY_SET(RADIO_IRQn, MPSL_HIGH_IRQ_PRIORITY);
+    NRFX_IRQ_PRIORITY_SET(TIMER0_IRQn, MPSL_HIGH_IRQ_PRIORITY);
+    NRFX_IRQ_PRIORITY_SET(TIMER1_IRQn, MPSL_HIGH_IRQ_PRIORITY);
+    checkError(mpsl_init(&mpsl_clock_config, MPSL_SWI, mpsl_assert_handler));
+    NRFX_IRQ_PRIORITY_SET(MPSL_SWI, 4);
+    NRFX_IRQ_ENABLE(MPSL_SWI);
+}
+void advertise()
+{
+}
 int32_t ble_init(void)
 {
+
     int err = 0;
-    err = sdc_init(sdc_assertion_handler);
-
-    err = configure_supported_features();
-    if (err)
-    {
-        return err;
-    }
-
-    err = configure_memory_usage();
     sdc_rand_source_t rand_functions = {.rand_prio_low_get = rand_get,
                                         .rand_prio_high_get = rand_get,
                                         .rand_poll = rand_poll};
+    mpsl_lib_init();
+    err = sdc_init(sdc_assertion_handler);
+
+    err = configure_supported_features();
+
+    err = configure_memory_usage();
 
     err = sdc_rand_source_register(&rand_functions);
-    if (err)
-    {
-        NRFX_LOG("Failed to register rand source (%d)", err);
-        return err;
-    }
 
-    err = sdc_enable(receive_signal_raise, sdc_mempool);
-    hci_driver_send();
-    if (err)
-    {
-        return err;
-    }
-
-    if (err)
-    {
-        return err;
-    }
-
+    err = sdc_enable(hci_driver_receive_process, sdc_mempool);
+    err = sdc_hci_cmd_cb_reset();
     return err;
 }

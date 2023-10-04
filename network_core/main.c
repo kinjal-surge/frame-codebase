@@ -48,6 +48,9 @@
 #include "nrfx_systick.h"
 #include "mpsl.h"
 #include "nrf_errno.h"
+#include "bluetooth.h"
+#include "hci_internal.h"
+#include "string.h"
 #define LOW_PRIORITY 0x0f
 #define MPSL_SWI SWI0_IRQn
 // static const nrfx_rtc_t rtc_instance = NRFX_RTC_INSTANCE(0);
@@ -63,10 +66,10 @@ static bool enable_mpsl = false;
 static bool prevent_sleep = true;
 volatile bool mpsl_event_pending = false;
 volatile uint8_t rng = 0;
-static __aligned(8) uint8_t sdc_mem[21000];
+static __aligned(8) uint8_t sdc_mem[2500];
 void checkError(int32_t);
 void setup_bluetooth(void);
-
+void sdc_callback(void);
 // static void unused_rtc_event_handler(nrfx_rtc_int_type_t int_type)
 // {
 //     if (enable_mpsl)
@@ -75,12 +78,14 @@ void setup_bluetooth(void);
 //         MPSL_IRQ_RTC0_Handler();
 //     }
 // }
-void SWI0_IRQ_Handler()
+void mpsl_low_priority_handler()
 {
-    NRFX_LOG("in SWI0_IRQHandler");
+    // NRFX_LOG("in SWI0_IRQHandler");
     if (enable_mpsl)
     {
+        sdc_callback();
         // NRFX_LOG("in SWI1_IRQHandler");
+        mpsl_low_priority_process();
         mpsl_event_pending = true;
         NRFX_IRQ_PENDING_CLEAR(MPSL_SWI);
     }
@@ -88,13 +93,14 @@ void SWI0_IRQ_Handler()
 
 int clock_irq_handler_wrapper()
 {
-    NRFX_LOG("in clock_irq_handler_wrapper");
+    // NRFX_LOG("in clock_irq_handler_wrapper");
     if (enable_mpsl)
     {
         MPSL_IRQ_CLOCK_Handler();
     }
     return 0;
 }
+
 void radio_irq_handler_wrapper()
 {
     // NRFX_LOG("in radio_irq_handler_wrapper");
@@ -104,6 +110,7 @@ void radio_irq_handler_wrapper()
         MPSL_IRQ_RADIO_Handler();
     }
 }
+
 void rtc_0_irq_handler_wrapper()
 {
     // NRFX_LOG("in RTC_IRQHandler");
@@ -551,20 +558,17 @@ int main(void)
     // app_err(nrf_drv_swi_init());
     setup_network_core();
     setup_bluetooth();
+    // NVIC->STIR = MPSL_SWI; // Software-trigger an interrupt
+    // NVIC_SetPendingIRQ(MPSL_SWI);
     while (1)
     {
-        // NRFX_LOG("RADIO_IRQn enable %d", NVIC_GetEnableIRQ(RADIO_IRQn));             // is it enabled?
+        // NRFX_LOG("SWI0 enable %d", NVIC_GetEnableIRQ(MPSL_SWI)); // is it enabled?
         // NRFX_LOG("TIMER0_IRQn enable %d", NVIC_GetEnableIRQ(TIMER0_IRQn));           // is it enabled?
         // NRFX_LOG("RTC0_IRQn enable %d", NVIC_GetEnableIRQ(RTC0_IRQn));               // is it enabled?
         // NRFX_LOG("CLOCK_POWER_IRQn enable %d", NVIC_GetEnableIRQ(CLOCK_POWER_IRQn)); // is it enabled?
         // NRFX_LOG("TIMER1_IRQn enable %d", NVIC_GetEnableIRQ(TIMER1_IRQn));           // is it enabled?
         // NRFX_LOG("RADIO_IRQn pending %d", NVIC_GetPendingIRQ(RADIO_IRQn)); // is it about to fire?
         // NRFX_LOG("RADIO_IRQn get active %d", NVIC_GetActive(RADIO_IRQn));
-        if (mpsl_event_pending)
-        {
-            mpsl_low_priority_process();
-            mpsl_event_pending = false;
-        }
         // run_micropython();
     }
 }
@@ -583,31 +587,38 @@ static void mpsl_assert_handler(const char *const file, const uint32_t line)
     NRFX_LOG("mpsl_assert_error: %s:%d", file, line);
 };
 
-static inline void sdc_callback()
+void sdc_callback()
 {
-    // bool check_again;
-    uint8_t hci_buffer[HCI_MSG_BUFFER_MAX_SIZE];
-    sdc_hci_msg_type_t msg_type;
+    bool check_again;
+    uint8_t hci_buffer[HCI_MSG_BUFFER_MAX_SIZE] = {0};
+    sdc_hci_msg_type_t msg_type = (sdc_hci_msg_type_t)NULL;
     int32_t err_code;
-    err_code = sdc_hci_get(hci_buffer, &msg_type);
-    // do
-    // {
-    //     check_again = false;
-    //     err_code = sdc_hci_get(hci_buffer, &msg_type);
-    //     if (err_code == 0)
-    //     {
-    //         if (msg_type == SDC_HCI_MSG_TYPE_EVT)
-    //         {
-    //             check_again = true;
-    //         }
+    // err_code = sdc_hci_get(hci_buffer, &msg_type);
+    do
+    {
+        uint8_t hci_buffer[HCI_MSG_BUFFER_MAX_SIZE] = {0};
+        msg_type = (sdc_hci_msg_type_t)NULL;
+        check_again = false;
+        err_code = sdc_hci_get(hci_buffer, &msg_type);
+        // bool discardable = event_packet_is_discardable(hci_buf);
+        struct bt_hci_evt_hdr *hdr = (void *)hci_buffer;
+        NRFX_LOG("Event (0x%02x) len %u", hdr->evt, hdr->len);
+        NRFX_LOG(" msg_type; %02x", msg_type);
+        if (err_code == 0)
+        {
+            if (msg_type == SDC_HCI_MSG_TYPE_EVT)
+            {
+                check_again = true;
+            }
 
-    //         if (msg_type == SDC_HCI_MSG_TYPE_DATA)
-    //         {
-    //             check_again = true;
-    //         }
-    //     }
-    // } while (check_again);
-    NRFX_LOG("sdc_get: %d", err_code);
+            if (msg_type == SDC_HCI_MSG_TYPE_DATA)
+            {
+                check_again = true;
+            }
+        }
+        NRFX_LOG("sdc_callback called %d", err_code);
+    } while (check_again);
+    // NRFX_LOG("sdc_get: %d", err_code);
     if (err_code == 0)
     {
         // A packet was retrieved successfully
@@ -645,7 +656,6 @@ static inline void sdc_callback()
     {
         // Unexpected error code
     }
-    NRFX_LOG("sdc_callback called %d", err_code);
 }
 // static void mpsl_irq_disable(void)
 // {
@@ -679,10 +689,9 @@ static void mpsl_lib_init(void)
     // NRFX_IRQ_ENABLE(RADIO_IRQn);s
     // NRFX_IRQ_ENABLE(TIMER1_IRQn);
     NRFX_LOG("MPSL init starting");
-    NRFX_IRQ_PRIORITY_SET(MPSL_SWI, 4);
     enable_mpsl = true;
     checkError(mpsl_init(&mpsl_clock_config, MPSL_SWI, mpsl_assert_handler));
-
+    NRFX_IRQ_PRIORITY_SET(MPSL_SWI, 4);
     NRFX_IRQ_ENABLE(MPSL_SWI);
     NRFX_LOG("MPSL init done");
 }
@@ -698,38 +707,30 @@ void checkError(int32_t ret_code)
 
 void setup_bluetooth(void)
 {
-
-    nrfx_systick_init();
+    // nrfx_systick_init();
     sdc_cfg_t cfg;
     nrfx_rng_config_t rng_config = NRFX_RNG_DEFAULT_CONFIG;
     app_err(nrfx_rng_init(&rng_config, rng_evt_handler));
-    // nrfx_rng_start();
-    // MPSL initialization
 
     mpsl_lib_init();
-    // NVIC->STIR = TIMER0_IRQn;                                            // Software-trigger an interrupt
-    // NVIC_SetPendingIRQ(TIMER0_IRQn);                                     // Set interrupt flag
-    // NRFX_LOG("TIMER0_IRQn enable %d", NVIC_GetEnableIRQ(TIMER0_IRQn));   // is it enabled?
-    // NRFX_LOG("TIMER0_IRQn pending %d", NVIC_GetPendingIRQ(TIMER0_IRQn)); // is it about to fire?
-    // NRFX_LOG("TIMER0_IRQn get active %d", NVIC_GetActive(TIMER0_IRQn));
     checkError(sdc_init(&my_fault_handler));
     sdc_rand_source_t my_rand_source = {
         .rand_prio_low_get = rand_get,
         .rand_prio_high_get = rand_get,
         .rand_poll = rand_poll};
-    sdc_rand_source_register(&my_rand_source);
+
     // sdc_default_tx_power_set(0);
     checkError(sdc_support_adv());
     checkError(sdc_support_peripheral());
-    checkError(sdc_support_central());
-    checkError(sdc_support_dle_central());
+    // checkError(sdc_support_central());
+    // checkError(sdc_support_dle_central());
     checkError(sdc_support_dle_peripheral());
     checkError(sdc_support_le_2m_phy());
     checkError(sdc_support_le_coded_phy());
-    checkError(sdc_support_phy_update_central());
+    // checkError(sdc_support_phy_update_central());
     checkError(sdc_support_phy_update_peripheral());
 
-    cfg.central_count.count = 15;
+    cfg.central_count.count = 0;
     checkError(sdc_cfg_set(SDC_DEFAULT_RESOURCE_CFG_TAG, SDC_CFG_TYPE_CENTRAL_COUNT, &cfg));
     cfg.peripheral_count.count = 1;
     checkError(sdc_cfg_set(SDC_DEFAULT_RESOURCE_CFG_TAG, SDC_CFG_TYPE_PERIPHERAL_COUNT, &cfg));
@@ -744,31 +745,15 @@ void setup_bluetooth(void)
     checkError(sdc_cfg_set(SDC_DEFAULT_RESOURCE_CFG_TAG, SDC_CFG_TYPE_EVENT_LENGTH, &cfg));
     cfg.adv_count.count = 1;
     checkError(sdc_cfg_set(SDC_DEFAULT_RESOURCE_CFG_TAG, SDC_CFG_TYPE_ADV_COUNT, &cfg));
-    cfg.adv_buffer_cfg.max_adv_data = 37;
+    cfg.adv_buffer_cfg.max_adv_data = 31;
     checkError(sdc_cfg_set(SDC_DEFAULT_RESOURCE_CFG_TAG, SDC_CFG_TYPE_ADV_BUFFER_CFG, &cfg));
-    cfg.scan_buffer_cfg.count = 3;
-    checkError(sdc_cfg_set(SDC_DEFAULT_RESOURCE_CFG_TAG, SDC_CFG_TYPE_SCAN_BUFFER_CFG, &cfg));
+    // cfg.scan_buffer_cfg.count = 3;
+    // checkError(sdc_cfg_set(SDC_DEFAULT_RESOURCE_CFG_TAG, SDC_CFG_TYPE_SCAN_BUFFER_CFG, &cfg));
     uint8_t build_revision[SDC_BUILD_REVISION_SIZE];
-
+    sdc_rand_source_register(&my_rand_source);
     sdc_build_revision_get(build_revision);
     NRFX_LOG_HEXDUMP_DEBUG(build_revision, sizeof(build_revision));
     NRFX_LOG("build_revision %d", sizeof(build_revision));
-    // cfg.central_count.count = 0;
-    // checkError(sdc_cfg_set(SDC_DEFAULT_RESOURCE_CFG_TAG, SDC_CFG_TYPE_CENTRAL_COUNT, &cfg));
-    // cfg.adv_count.count = SDC_DEFAULT_ADV_COUNT;
-    // checkError(sdc_cfg_set(SDC_DEFAULT_RESOURCE_CFG_TAG, SDC_CFG_TYPE_ADV_COUNT, &cfg));
-    // cfg.peripheral_count.count = SDC_DEFAULT_PERIPHERAL_COUNT;
-    // checkError(sdc_cfg_set(SDC_DEFAULT_RESOURCE_CFG_TAG, SDC_CFG_TYPE_PERIPHERAL_COUNT, &cfg));
-    // cfg.event_length.event_length_us = SDC_DEFAULT_EVENT_LENGTH_US;
-    // checkError(sdc_cfg_set(SDC_DEFAULT_RESOURCE_CFG_TAG, SDC_CFG_TYPE_EVENT_LENGTH, &cfg));
-    // cfg.buffer_cfg.tx_packet_size = SDC_DEFAULT_TX_PACKET_SIZE;
-    // cfg.buffer_cfg.rx_packet_size = SDC_DEFAULT_RX_PACKET_SIZE;
-    // cfg.buffer_cfg.tx_packet_count = SDC_DEFAULT_TX_PACKET_COUNT;
-    // cfg.buffer_cfg.rx_packet_count = SDC_DEFAULT_RX_PACKET_COUNT;
-
-    // checkError(sdc_cfg_set(SDC_DEFAULT_RESOURCE_CFG_TAG, SDC_CFG_TYPE_BUFFER_CFG, &cfg));
-    // cfg.adv_buffer_cfg.max_adv_data = SDC_DEFAULT_ADV_BUF_SIZE;
-    // checkError(sdc_cfg_set(SDC_DEFAULT_RESOURCE_CFG_TAG, SDC_CFG_TYPE_ADV_BUFFER_CFG, &cfg));
 
     checkError(sdc_enable(sdc_callback, sdc_mem));
     checkError(sdc_hci_cmd_cb_reset());
@@ -778,14 +763,14 @@ void setup_bluetooth(void)
     // }
 
     // sdc_callback();
-    sdc_hci_cmd_le_read_local_supported_features_return_t features;
-    checkError(sdc_hci_cmd_le_read_local_supported_features(&features));
-    NRFX_LOG("size of features %d", features.params.le_periodic_advertising);
-    sdc_callback();
-    sdc_hci_cmd_cb_set_event_mask_t evt_mask = {.raw = {0xde, 0x0b, 0x00, 0x00, 0x00, 0x80, 0x00, 0x00}};
-    // evt_mask.params.
-    checkError(sdc_hci_cmd_cb_set_event_mask(&evt_mask));
-    sdc_callback();
+    // sdc_hci_cmd_le_read_local_supported_features_return_t features;
+    // checkError(sdc_hci_cmd_le_read_local_supported_features(&features));
+    // NRFX_LOG("size of features %d", features.params.le_periodic_advertising);
+    // sdc_callback();
+    // sdc_hci_cmd_cb_set_event_mask_t evt_mask = {.raw = {0xde, 0x0b, 0x00, 0x00, 0x00, 0x80, 0x00, 0x00}};
+    // // evt_mask.params.
+    // checkError(sdc_hci_cmd_cb_set_event_mask(&evt_mask));
+    // sdc_callback();
     sdc_hci_cmd_le_set_random_address_t rand_address = {.random_address = {0xad, 0x4b, 0xe2, 0x43, 0x2d, 0xc0}};
     checkError(sdc_hci_cmd_le_set_random_address(&rand_address));
     sdc_callback();
@@ -802,24 +787,25 @@ void setup_bluetooth(void)
     sdc_callback();
     sdc_hci_cmd_le_set_adv_data_t adv_data = {
         .adv_data = {
-            0x0b, 0x02, 0x01, 0x06, 0x07, 0x03, 0x0d, 0x18,
-            0x0f, 0x18, 0x0a, 0x18, 0x00, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-            0x0B, 0x09, 'f', 'r', 'a', 'm', 'e'},
-        .adv_data_length = 31};
+            //  Len   type  data
+            0x02, 0x01, 0x06,
+            0x06, 0x09, 'f', 'r', 'a', 'm', 'e',
+            0x11, 0x07, 0x9E, 0xCA, 0xDC, 0x24, 0x0E, 0xE5, 0xA9, 0xE0, 0x93, 0xF3, 0xA3, 0xB5, 0x01, 0x00, 0x40, 0x6E},
+        .adv_data_length = 28};
     checkError(sdc_hci_cmd_le_set_adv_data(&adv_data));
     sdc_callback();
-    sdc_hci_cmd_le_set_scan_response_data_t scan_response = {
-        .scan_response_data = {
-            0x19, 0x18, 0x09, 0x5a, 0x65, 0x70, 0x68, 0x79,
-            0x72, 0x20, 0x48, 0x65, 0x61, 0x72, 0x74, 0x72,
-            0x61, 0x74, 0x65, 0x20, 0x53, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
-        .scan_response_data_length = 31};
-    checkError(sdc_hci_cmd_le_set_scan_response_data(&scan_response));
-    sdc_callback();
+    // sdc_hci_cmd_le_set_scan_response_data_t scan_response = {
+    //     .scan_response_data = {
+    //         0x19, 0x18, 0x09, 0x5a, 0x65, 0x70, 0x68, 0x79,
+    //         0x72, 0x20, 0x48, 0x65, 0x61, 0x72, 0x74, 0x72,
+    //         0x61, 0x74, 0x65, 0x20, 0x53, 0x00, 0x00, 0x00,
+    //         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
+    //     .scan_response_data_length = 31};
+    // NRFX_LOG("BLE  set scan data");
+    // checkError(sdc_hci_cmd_le_set_scan_response_data(&scan_response));
+    // sdc_callback();
     sdc_hci_cmd_le_set_adv_enable_t adv_enable = {.adv_enable = 0x01};
-
+    // NRFX_LOG("BLE  ad enable");
     checkError(sdc_hci_cmd_le_set_adv_enable(&adv_enable));
     sdc_callback();
     NRFX_LOG("BLE  setup done");
