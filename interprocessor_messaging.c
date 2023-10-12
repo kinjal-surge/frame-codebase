@@ -116,7 +116,7 @@ void push_message(message_t message)
         while (next == tx->tail)
         {
             // FOR TEMP returning  TODO: handle it
-            return;
+            // return;
             // Buffer is full. Do nothing
         }
 

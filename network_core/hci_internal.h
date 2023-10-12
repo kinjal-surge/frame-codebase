@@ -271,7 +271,7 @@ int hci_internal_user_cmd_handler_register(const hci_internal_user_cmd_handler_t
  */
 int hci_internal_msg_get(uint8_t *msg_out, sdc_hci_msg_type_t *msg_type_out);
 void hci_driver_receive_process(void);
-
+void bt_hci_receive(uint8_t *buff);
 /**
  * Initialize softdevice controller with MPSL and do a reset
  */
