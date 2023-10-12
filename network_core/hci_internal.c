@@ -734,20 +734,3 @@ int hci_internal_cmd_put(uint8_t *cmd_in)
 
     return 0;
 }
-
-int hci_internal_msg_get(uint8_t *msg_out, sdc_hci_msg_type_t *msg_type_out)
-{
-    if (cmd_complete_or_status.occurred)
-    {
-        struct bt_hci_evt_hdr *evt_hdr = (void *)&cmd_complete_or_status.raw_event[0];
-
-        memcpy(msg_out, &cmd_complete_or_status.raw_event[0],
-               evt_hdr->len + BT_HCI_EVT_HDR_SIZE);
-        cmd_complete_or_status.occurred = false;
-
-        *msg_type_out = SDC_HCI_MSG_TYPE_EVT;
-
-        return 0;
-    }
-    return sdc_hci_get(msg_out, msg_type_out);
-}

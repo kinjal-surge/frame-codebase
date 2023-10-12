@@ -197,7 +197,12 @@ static bool fetch_and_process_hci_msg(uint8_t *p_hci_buffer)
     int errcode;
     sdc_hci_msg_type_t msg_type = 0;
 
-    errcode = hci_internal_msg_get(p_hci_buffer, &msg_type);
+    errcode = sdc_hci_get(p_hci_buffer, &msg_type);
+
+    if (errcode)
+    {
+        return false;
+    }
     NRFX_LOG("================= Receive ========================");
     NRFX_LOG("error: %d, msg_type: %u", errcode, msg_type);
     // for (int i = 0; i < sizeof(p_hci_buffer); i++) {
@@ -209,11 +214,6 @@ static bool fetch_and_process_hci_msg(uint8_t *p_hci_buffer)
     }
     NRFX_LOG("");
     NRFX_LOG("================= Receive End ========================");
-    if (errcode)
-    {
-        return false;
-    }
-
     // struct bt_hci_evt_hdr *hdr = (void *)p_hci_buffer;
     // NRFX_LOG("Event (0x%02x) len %u", hdr->evt, hdr->len);
     // for (size_t i = 0; i < sizeof(p_hci_buffer); i++)
@@ -318,7 +318,7 @@ void mpsl_low_priority_handler()
 {
     // NRFX_LOG("in SWI0_IRQHandler");
     mpsl_low_priority_process();
-    NRFX_IRQ_PENDING_CLEAR(MPSL_SWI);
+    // NRFX_IRQ_PENDING_CLEAR(MPSL_SWI);
 }
 
 int clock_irq_handler_wrapper()
@@ -365,30 +365,33 @@ static void mpsl_lib_init(void)
 }
 void ble_advertise()
 {
-    // sdc_hci_cmd_le_rand_return_t rand_return;
-    // check_error(sdc_hci_cmd_le_rand(&rand_return));
-    // NRFX_LOG("rand %02x", rand_return.random_number);
-    // sdc_hci_cmd_ip_read_bd_addr_return_t bd_addr;
-    // check_error(sdc_hci_cmd_ip_read_bd_addr(&bd_addr));
-    // NRFX_LOG("========PUBLIC ADDRESS=======");
-    // for (size_t i = 0; i < sizeof(bd_addr.bd_addr); i++)
-    // {
-    //     SEGGER_RTT_printf(0, "0x%02x ", bd_addr.bd_addr[i]); // Print the elements of buf
-    // }
-    // NRFX_LOG("");
-    // NRFX_LOG("=========== PUBLIC ADDRESS End ==============");
-    // sdc_hci_cmd_cb_host_buffer_size_t host_buffer_szie={
-    //     .host_acl_data_packet_length = 27
-    // } ;
-    // check_error(sdc_hci_cmd_cb_host_buffer_size());
-    // sdc_hci_cmd_cb_set_controller_to_host_flow_control_t host_flow_control_enable = {
-    //     .flow_control_enable = 1};
-    // check_error(sdc_hci_cmd_cb_set_controller_to_host_flow_control(&host_flow_control_enable));
-    // check_error(sdc_hci_cmd_cb_host_number_of_completed_packets());
-
+    // sdc_hci_cmd_le_read_buffer_size_return_t buff_size;
+    // check_error(sdc_hci_cmd_le_read_buffer_size(&buff_size));
+    // NRFX_LOG("0x%04x, 0x%02x", buff_size.le_acl_data_packet_length, buff_size.total_num_le_acl_data_packets);
     sdc_hci_cmd_vs_zephyr_read_static_addresses_return_t static_address;
     check_error(sdc_hci_cmd_vs_zephyr_read_static_addresses(&static_address));
     sdc_hci_cmd_le_set_random_address_t rand_address = {.random_address = {0, 0, 0, 0, 0, 0}};
+
+    for (size_t i = 0; i < static_address.num_addresses; i++)
+    {
+        for (size_t j = 0; j < 6; j++)
+        {
+            rand_address.random_address[j] = static_address.addresses[i].address[j];
+            // SEGGER_RTT_printf(0, "0x%02x ", static_address.addresses[i].address[j]); // Print the elements of buf
+        }
+        // NRFX_LOG("");
+    }
+
+    check_error(sdc_hci_cmd_le_set_random_address(&rand_address));
+
+    sdc_hci_cmd_le_set_event_mask_t event_mask_le = {
+        .raw = {0xDE, 0x0B, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+    check_error(sdc_hci_cmd_le_set_event_mask(&event_mask_le));
+
+    sdc_hci_cmd_cb_set_event_mask_t event_mask = {
+        .raw = {0x90, 0x88, 0x00, 0x02, 0x00, 0x80, 0x00, 0x20}};
+    check_error(sdc_hci_cmd_cb_set_event_mask(&event_mask));
+    hci_driver_receive_process();
     sdc_hci_cmd_le_set_adv_params_t adv_param = {
         .adv_interval_min = 0x00a0,
         .adv_interval_max = 0x00f0,
@@ -398,26 +401,6 @@ void ble_advertise()
         .peer_address = {0, 0, 0, 0, 0, 0},
         .adv_channel_map = 0x07,
         .adv_filter_policy = 0x00};
-    for (size_t i = 0; i < static_address.num_addresses; i++)
-    {
-        for (size_t j = 0; j < 6; j++)
-        {
-            rand_address.random_address[j] = static_address.addresses[i].address[j];
-            adv_param.peer_address[j] = static_address.addresses[i].address[j];
-            // SEGGER_RTT_printf(0, "0x%02x ", static_address.addresses[i].address[j]); // Print the elements of buf
-        }
-        // NRFX_LOG("");
-    }
-
-    check_error(sdc_hci_cmd_le_set_random_address(&rand_address));
-    sdc_hci_cmd_le_set_event_mask_t event_mask_le = {
-        .raw = {0x90, 0x88, 0x00, 0x02}};
-    check_error(sdc_hci_cmd_le_set_event_mask(&event_mask_le));
-
-    sdc_hci_cmd_cb_set_event_mask_t event_mask = {
-        .raw = {0xDE, 0x0B, 0x00, 0x00}};
-    check_error(sdc_hci_cmd_cb_set_event_mask(&event_mask));
-    hci_driver_receive_process();
     check_error(sdc_hci_cmd_le_set_adv_params(&adv_param));
     hci_driver_receive_process();
     sdc_hci_cmd_le_set_adv_data_t adv_data = {
@@ -429,16 +412,16 @@ void ble_advertise()
         .adv_data_length = 28};
     check_error(sdc_hci_cmd_le_set_adv_data(&adv_data));
     hci_driver_receive_process();
-    sdc_hci_cmd_le_set_scan_response_data_t scan_response = {
-        .scan_response_data = {
-            0x19, 0x18, 0x09, 0x5a, 0x65, 0x70, 0x68, 0x79,
-            0x72, 0x20, 0x48, 0x65, 0x61, 0x72, 0x74, 0x72,
-            0x61, 0x74, 0x65, 0x20, 0x53, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
-        .scan_response_data_length = 31};
-    NRFX_LOG("BLE  set scan data");
-    check_error(sdc_hci_cmd_le_set_scan_response_data(&scan_response));
-    hci_driver_receive_process();
+    // sdc_hci_cmd_le_set_scan_response_data_t scan_response = {
+    //     .scan_response_data = {
+    //         0x19, 0x18, 0x09, 0x5a, 0x65, 0x70, 0x68, 0x79,
+    //         0x72, 0x20, 0x48, 0x65, 0x61, 0x72, 0x74, 0x72,
+    //         0x61, 0x74, 0x65, 0x20, 0x53, 0x00, 0x00, 0x00,
+    //         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
+    //     .scan_response_data_length = 31};
+    // NRFX_LOG("BLE  set scan data");
+    // check_error(sdc_hci_cmd_le_set_scan_response_data(&scan_response));
+    // hci_driver_receive_process();
     sdc_hci_cmd_le_set_adv_enable_t adv_enable = {.adv_enable = 0x01};
     // NRFX_LOG("BLE  ad enable");
     check_error(sdc_hci_cmd_le_set_adv_enable(&adv_enable));
