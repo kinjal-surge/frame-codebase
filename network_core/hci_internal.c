@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: LicenseRef-Nordic-5-Clause
  */
 #include "hci_internal.h"
+#include "hci.h"
 #include <string.h>
 #define CMD_COMPLETE_MIN_SIZE (BT_HCI_EVT_HDR_SIZE + sizeof(struct bt_hci_evt_cmd_complete) + sizeof(struct bt_hci_evt_cc_status))
 

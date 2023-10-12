@@ -16,6 +16,7 @@
 #include "hci_internal.h"
 #include "rng_helper.h"
 #include "mpsl.h"
+#include "hci.h"
 /** Data size needed for HCI Event RX buffers */
 #define BT_BUF_EVT_RX_SIZE BT_BUF_EVT_SIZE(68)
 #define BT_BUF_RX_SIZE BT_BUF_EVT_SIZE(68)
@@ -155,15 +156,41 @@ static void data_packet_process(uint8_t *hci_buf)
 //         return false;
 //     }
 // }
+static void ble_conn(uint8_t *buff)
+{
+    struct bt_hci_evt_le_enh_conn_complete *evt = (void *)buff;
+    uint16_t handle = evt->handle;
+    // bool is_disconnected = conn_handle_is_disconnected(handle);
+    // bt_addr_le_t peer_addr, id_addr;
+    // struct bt_conn *conn;
+    // uint8_t id;
 
+    NRFX_LOG("status 0x%02x handle %u role %u", evt->status, handle,
+             evt->role);
+    // LOG_DBG("local RPA %s", bt_addr_str(&evt->local_rpa));
+}
+static void handle_meta_events(uint8_t *evt)
+{
+    struct bt_hci_evt_le_meta_event *me = (void *)&evt[2];
+
+    NRFX_LOG("LE Meta Event (0x%02x)", me->subevent);
+    switch (me->subevent)
+    {
+    case BT_HCI_EVT_LE_ENH_CONN_COMPLETE:
+        ble_conn(evt);
+        break;
+
+    default:
+        break;
+    }
+}
 static void event_packet_process(uint8_t *hci_buf)
 {
     struct bt_hci_evt_hdr *hdr = (void *)hci_buf;
     if (hdr->evt == BT_HCI_EVT_LE_META_EVENT)
     {
-        struct bt_hci_evt_le_meta_event *me = (void *)&hci_buf[2];
 
-        NRFX_LOG("LE Meta Event (0x%02x), len (%u)", me->subevent, hdr->len);
+        handle_meta_events(hci_buf);
     }
     else if (hdr->evt == BT_HCI_EVT_CMD_COMPLETE)
     {
@@ -214,15 +241,6 @@ static bool fetch_and_process_hci_msg(uint8_t *p_hci_buffer)
     }
     NRFX_LOG("");
     NRFX_LOG("================= Receive End ========================");
-    // struct bt_hci_evt_hdr *hdr = (void *)p_hci_buffer;
-    // NRFX_LOG("Event (0x%02x) len %u", hdr->evt, hdr->len);
-    // for (size_t i = 0; i < sizeof(p_hci_buffer); i++)
-    // {
-    //     SEGGER_RTT_printf(0, "0x%02x ", p_hci_buffer[i]); // Print the elements of buf
-    // }
-    // sdc_hci_cmd_le_create_conn_t conn_params;
-    // conn_params.
-    // sdc_hci_cmd_le_create_conn(&conn_params);
     if (msg_type == SDC_HCI_MSG_TYPE_EVT)
     {
         event_packet_process(p_hci_buffer);
