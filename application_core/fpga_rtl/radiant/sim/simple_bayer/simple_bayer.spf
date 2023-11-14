@@ -1,0 +1,9 @@
+<RadiantSimulationProject version="2.0" stage="0" path="sim" name="simple_bayer" simType="ModelSim" language="1">
+    <Source type="VERILOG" langstandard="" include="none" worklib="" path="source/impl_1/simple_bayer.sv"/>
+    <Source type="VERILOG" langstandard="" include="none" worklib="" path="sim/simple_bayer/tb_top.sv"/>
+    <SimLib value="pmi_work ovi_lifcl"/>
+    <GlbInc value=""/>
+    <Macro value=""/>
+    <Udo value=""/>
+    <TopModule instance="" name="simple_bayer" language="VERILOG"/>
+</RadiantSimulationProject>

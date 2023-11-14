@@ -1,0 +1,37 @@
+set architecture "LIFCL"
+set device "LIFCL-17"
+set package "WLCSP72"
+set speed "8_Low-Power_1.0V"
+set WRAPPER_INST "lscc_pixel2byte_inst"
+set FAMILY "LIFCL"
+set DATA_TYPE "RAW10"
+set DT "6'h2B"
+set PIX_WIDTH 10
+set DATA_WIDTH 16
+set NUM_PIX_LANE 1
+set PIX_CLK_FREQ 36.000000
+set AXI4S "OFF"
+set DSI_FORMAT 0
+set DSI_MODE "NONBURST_PULSES"
+set NUM_TX_LANE 1
+set TX_GEAR 8
+set BYTE_CLK_FREQ 45.000000
+set AXI4M "OFF"
+set APB "OFF"
+set TXFR_SIG 1
+set WORD_CNT 1600
+set THRESHOLD 4
+set PIX_FIFO_DEPTH 512
+
+
+## This is just for reference. Create clocks as per your design requirements. 
+create_clock -name {pix_clk_i} -period 5 [get_ports pix_clk_i]
+create_clock -name {byte_clk_i} -period 5 [get_ports byte_clk_i]
+# create_clock -name {apb_pclk_i} -period 5 [get_ports apb_pclk_i]
+
+## Async group is created as all the clocks are asynchronous. 
+## If byte and pixel clocks are driven from the same source, user can remove the async group
+# set_clock_groups -asynchronous \
+# -group {pix_clk_i } \
+# -group {byte_clk_i } \
+# -group {apb_pclk_i } \

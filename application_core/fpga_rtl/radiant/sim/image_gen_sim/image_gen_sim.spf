@@ -1,0 +1,9 @@
+<RadiantSimulationProject language="1" path="sim" version="2.0" name="image_gen_sim" simType="ModelSim" stage="0">
+    <Source langstandard="System Verilog" path="sim/image_gen.sv" type="VERILOG" include="none" worklib="work"/>
+    <Source langstandard="" path="sim/image_gen_sim/tb_image_gen.sv" type="VERILOG" include="none" worklib=""/>
+    <SimLib value="pmi_work ovi_lifcl"/>
+    <GlbInc value=""/>
+    <Macro value=""/>
+    <Udo value=""/>
+    <TopModule instance="" language="VERILOG" name="tb_image_gen"/>
+</RadiantSimulationProject>

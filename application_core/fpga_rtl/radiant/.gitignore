@@ -1,0 +1,13 @@
+*.log
+*.wlf
+*.bak*
+*.html
+*.tcr
+impl_1/**
+*.vstf
+*.mti
+*.mdo
+transcript
+work/
+log.txt
+.build_status

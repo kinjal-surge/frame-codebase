@@ -1,0 +1,12 @@
+<RadiantSimulationProject name="dphy_tx" language="1" simType="ModelSim" stage="0" version="2.0" path="sim">
+    <Source worklib="" langstandard="" path="sim/csi_tx/testbench/lscc_dphy_tx_model.v" type="VERILOG" include="none"/>
+    <Source worklib="" langstandard="" path="sim/csi_tx/testbench/rx_model.v" type="VERILOG" include="none"/>
+    <Source worklib="" langstandard="" path="sim/csi_tx/testbench/tb_top.v" type="VERILOG" include="none"/>
+    <Source worklib="" langstandard="" path="sim/csi_tx/rtl/csi_tx.v" type="VERILOG" include="none"/>
+    <Source worklib="" langstandard="" path="sim/csi_tx/rtl/csi_tx_bb.v" type="VERILOG" include="none"/>
+    <SimLib value="pmi_work ovi_lifcl"/>
+    <GlbInc value=""/>
+    <Macro value=""/>
+    <Udo value=""/>
+    <TopModule name="tb_top" language="VERILOG" instance=""/>
+</RadiantSimulationProject>

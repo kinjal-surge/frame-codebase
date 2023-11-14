@@ -1,0 +1,8 @@
+<RadiantSimulationProject version="2.0" stage="0" name="colorbar_sim" language="1" path="sim" simType="ModelSim">
+    <Source type="VERILOG" worklib="work" langstandard="Verilog 2001" include="none" path="sim/colorbar_gen.v"/>
+    <SimLib value="pmi_work ovi_lifcl"/>
+    <GlbInc value=""/>
+    <Macro value=""/>
+    <Udo value=""/>
+    <TopModule name="colorbar_gen" language="VERILOG" instance=""/>
+</RadiantSimulationProject>

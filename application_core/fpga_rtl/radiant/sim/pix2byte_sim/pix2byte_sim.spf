@@ -1,0 +1,8 @@
+<RadiantSimulationProject path="sim" simType="ModelSim" version="2.0" name="pix2byte_sim" language="1" stage="0">
+    <Source include="none" type="VERILOG" path="sim/pix2byte/testbench/tb_top.v" worklib="" langstandard=""/>
+    <SimLib value="pmi_work ovi_lifcl"/>
+    <GlbInc value=""/>
+    <Macro value=""/>
+    <Udo value=""/>
+    <TopModule instance="" name="tb_top" language="VERILOG"/>
+</RadiantSimulationProject>

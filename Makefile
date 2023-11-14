@@ -24,6 +24,7 @@
 
 BUILD_VERSION := $(shell TZ= date +v%y.%j.%H%M) # := forces evaluation once
 GIT_COMMIT := $(shell git rev-parse --short HEAD)
+ARM_TOOLS := /home/rohit/arm-gnu-toolchain-12.3.rel1-x86_64-arm-none-eabi/bin
 
 # Source files
 SHARED_C_FILES += \
@@ -173,56 +174,70 @@ SHARED_LIBS += \
 all: build/application_core.elf \
      build/network_core.elf
 
-	@arm-none-eabi-objcopy -O ihex build/application_core.elf build/application_core.hex
-	@arm-none-eabi-objcopy -O ihex build/network_core.elf build/network_core.hex
-	@arm-none-eabi-size $^
+	@$(ARM_TOOLS)/arm-none-eabi-objcopy -O ihex build/application_core.elf build/application_core.hex
+	@$(ARM_TOOLS)/arm-none-eabi-objcopy -O ihex build/network_core.elf build/network_core.hex
+	@$(ARM_TOOLS)/arm-none-eabi-size $^
 
 
 build/application_core.elf: $(SHARED_C_FILES) \
                             $(APPLICATION_CORE_C_FILES) \
-                            | application_core/fpga_application.h
+                            application_core/fpga_application.h
 
 	@mkdir -p build
-	@arm-none-eabi-gcc $(SHARED_FLAGS) $(APPLICATION_CORE_FLAGS) -o $@ $^ $(SHARED_LIBS)
+	@$(ARM_TOOLS)/arm-none-eabi-gcc $(SHARED_FLAGS) $(APPLICATION_CORE_FLAGS) -o $@ $^ $(SHARED_LIBS)
 
 
 build/network_core.elf: $(SHARED_C_FILES) \
                         $(NETWORK_CORE_C_FILES)
 
 	@mkdir -p build
-	@arm-none-eabi-gcc $(SHARED_FLAGS) $(NETWORK_CORE_FLAGS) -o $@ $^ $(SHARED_LIBS)
+	@$(ARM_TOOLS)/arm-none-eabi-gcc $(SHARED_FLAGS) $(NETWORK_CORE_FLAGS) -o $@ $^ $(SHARED_LIBS)
 
+
+# application_core/fpga_application.h: $(FPGA_RTL_SOURCE_FILES)
+	
+# 	@mkdir -p build
+
+# 	@cd fpga && \
+# 	 iverilog -Wall \
+# 	          -g2012 \
+# 	          -o /dev/null \
+# 	          -i top.sv
+
+# 	@yosys -p "synth_nexus \
+# 	       -json build/fpga_application.json" \
+# 	       fpga/top.sv
+
+# 	@nextpnr-nexus --device LIFCL-17-7UWG72 \
+# 	               --pdc fpga/fpga_pinout.pdc \
+# 	               --json build/fpga_application.json \
+# 	               --fasm build/fpga_application.fasm
+
+# 	@prjoxide pack build/fpga_application.fasm build/fpga_application.bit
+	
+# 	@xxd -name fpga_application \
+# 	     -include build/fpga_application.bit \
+# 		 build/fpga_application_temp.h
+
+# 	@sed '1s/^/const /' build/fpga_application_temp.h > fpga/fpga_application.h
 
 application_core/fpga_application.h: $(FPGA_RTL_SOURCE_FILES)
 	
 	@mkdir -p build
 
-	@cd application_core/fpga_rtl && \
-	    iverilog -Wall \
-	             -g2012 \
-	             -o /dev/null \
-	             -i top.sv
-
-	@yosys -p "synth_nexus \
-	       -json build/fpga_rtl.json" \
-	       application_core/fpga_rtl/top.sv
-
-	@nextpnr-nexus --device LIFCL-17-7UWG72 \
-	               --pdc application_core/fpga_rtl/fpga_pinout.pdc \
-	               --json build/fpga_rtl.json \
-	               --fasm build/fpga_rtl.fasm
-
-	@prjoxide pack build/fpga_rtl.fasm build/fpga_rtl.bit
+	@cp application_core/fpga_rtl/radiant/impl_1/frame_fpga_impl_1.bit build/fpga_rtl.bit
 	
 	@xxd -i build/fpga_rtl.bit build/fpga_binfile_ram.h
 	@sed '1s/^/const /' build/fpga_binfile_ram.h > $@
 
-
 release:
 	@echo TODO
 
+clean-rtl:
+	rm -f application_core/fpga_application.h
+
 clean:
-	rm -rf build/
+	rm -rf build/ application_core/fpga_application.h
 
 flash: all
 	nrfjprog -q --coprocessor CP_APPLICATION --program build/application_core.hex --sectorerase

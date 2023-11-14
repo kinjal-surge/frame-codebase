@@ -31,6 +31,8 @@
 #include "nrfx_log.h"
 
 #include "i2c.h"
+#include "spi.h"
+#include "nrfx_systick.h"
 
 // static lua_State *globalL = NULL;
 
@@ -122,8 +124,105 @@ void run_lua(void)
 
         // int status = luaL_dostring(L, "function fib(x) if x<=1 then return x end return fib(x-1)+fib(x-2) end print(fib(20)) print(fib(20)) print(fib(20)) print(fib(20)) print(fib(20))");
 
-        i2c_response_t frame_count = i2c_read(CAMERA, 0x4A00, 0xFF);
-        LOG("Frame count: %u", frame_count.value);
+        i2c_response_t frame_count;
+        uint8_t txbuf;
+        uint8_t rxbuf[16000];
+        uint32_t i;
+        uint8_t j;
+        uint32_t pix_block;
+        uint16_t r, g, b;
+
+        switch (repl.buffer[0])
+        {
+        case (uint8_t)('p'):
+            txbuf = 0xbb;
+            spi_write(FPGA, &txbuf, 1, true);
+            spi_read(FPGA, &rxbuf[0], 640*4, false);
+            i = 0;
+            LOG("Frame data R G B:");
+            while (i<640*4) {
+                pix_block = (uint32_t) ((rxbuf[i] << 24) + (rxbuf[i+1] << 16) + (rxbuf[i+2] << 8) + rxbuf[i+3]);
+                r = (uint16_t)((pix_block & 0x3FF00000) >> 20);
+                g = (uint16_t)((pix_block & 0x000ffc00) >> 10);
+                b = (uint16_t)((pix_block & 0x000003ff)      );
+                LOG("%d\t%d\t%d", r, g, b);
+                i = i+4;
+                nrfx_systick_delay_ms(1);
+            }
+            break;
+        case (uint8_t)('t'):
+            txbuf = 0xbb;
+            LOG("Frame data R G B:");
+            spi_write(FPGA, &txbuf, 1, true);
+
+            for (j = 0; j<10; j++) {
+                if (j==9)
+                    spi_read(FPGA, &rxbuf[0], 16000, false);
+                else 
+                    spi_read(FPGA, &rxbuf[0], 16000, true);
+                i = 0;
+                while (i<16000) {
+                    pix_block = (uint32_t) ((rxbuf[i] << 24) + (rxbuf[i+1] << 16) + (rxbuf[i+2] << 8) + rxbuf[i+3]);
+                    r = (uint16_t)((pix_block & 0x3FF00000) >> 20);
+                    g = (uint16_t)((pix_block & 0x000ffc00) >> 10);
+                    b = (uint16_t)((pix_block & 0x000003ff)      );
+                    LOG("%d\t%d\t%d", r, g, b);
+                    i = i+4;
+                    nrfx_systick_delay_us(200);
+                }
+            }
+            break;
+
+        case (uint8_t)('o'):
+            txbuf = 0xba;
+            spi_write(FPGA, &txbuf, 1, true);
+            spi_read(FPGA, &rxbuf[0], 640*2, false);
+            i = 0;
+            LOG("Frame data R G B:");
+            while (i<640*2) {
+                pix_block = (uint32_t) ((rxbuf[i] << 8) + (rxbuf[i+1]));
+                r = (uint16_t)((pix_block & 0x380) >> 7);
+                g = (uint16_t)((pix_block & 0x078) >> 3);
+                b = (uint16_t)((pix_block & 0x007));
+                LOG("%d\t%d\t%d", r, g, b);
+                i = i+2;
+                nrfx_systick_delay_ms(1);
+            }
+            break;
+
+        case (uint8_t)('f'):
+            frame_count = i2c_read(CAMERA, 0x4A00, 0xFF);
+            LOG("Frame count: %u", frame_count.value);
+            break;
+
+        case (uint8_t)('d'):
+            txbuf = 0xb9;
+            spi_write(FPGA, &txbuf, 1, true);
+            spi_read(FPGA, &rxbuf[0], 4, false);
+            pix_block = (uint32_t) ((rxbuf[0] << 24) + (rxbuf[1] << 16) + (rxbuf[2] << 8) + rxbuf[3]);
+            LOG("debug32 => %d", pix_block);
+            break;
+
+        case (uint8_t)('b'):
+            txbuf = 0xb8;
+            spi_write(FPGA, &txbuf, 1, true);
+            spi_read(FPGA, &rxbuf[0], 1, false);
+            LOG("0xB8 => %x", rxbuf[0]);
+            break;
+
+        case (uint8_t)('x'):
+            frame_count = i2c_read(CAMERA, 0x4A00, 0xFF);
+            txbuf = 0xb8;
+            spi_write(FPGA, &txbuf, 1, true);
+            spi_read(FPGA, &rxbuf[0], 1, false);
+            
+            LOG("Frame count came => %u", frame_count.value);
+            LOG("Frame count fpga => %d", rxbuf[0]);
+            break;
+        
+        default:
+            break;
+        }
 
         ///////////////////////
 
@@ -144,12 +243,12 @@ void run_lua(void)
 
                 if (lua_pcall(L, printables, 0, 0) != LUA_OK)
                 {
-                    const char *msg = lua_pushfstring(
-                        L,
-                        "error calling 'print' (%s)",
-                        lua_tostring(L, -1));
+                    // const char *msg = lua_pushfstring(
+                    //     L,
+                    //     "error calling 'print' (%s)",
+                    //     lua_tostring(L, -1));
 
-                    lua_writestringerror("%s\n", msg);
+                    // lua_writestringerror("%s\n", msg);
                 }
             }
         }
