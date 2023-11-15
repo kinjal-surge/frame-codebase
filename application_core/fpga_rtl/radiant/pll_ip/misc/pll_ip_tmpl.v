@@ -4,5 +4,4 @@
         .clkos2_o( ),
         .clkos3_o( ),
         .clkos4_o( ),
-        .clkos5_o( ),
         .lock_o( ));

@@ -198,7 +198,7 @@ build/network_core.elf: $(SHARED_C_FILES) \
 	
 # 	@mkdir -p build
 
-# 	@cd fpga && \
+# 	@cd application_core/fpga_rtl && \
 # 	 iverilog -Wall \
 # 	          -g2012 \
 # 	          -o /dev/null \
@@ -206,20 +206,19 @@ build/network_core.elf: $(SHARED_C_FILES) \
 
 # 	@yosys -p "synth_nexus \
 # 	       -json build/fpga_application.json" \
-# 	       fpga/top.sv
+# 	       application_core/fpga_rtl/top.sv
 
 # 	@nextpnr-nexus --device LIFCL-17-7UWG72 \
-# 	               --pdc fpga/fpga_pinout.pdc \
+# 	               --pdc application_core/fpga_rtl/fpga_pinout.pdc \
 # 	               --json build/fpga_application.json \
 # 	               --fasm build/fpga_application.fasm
 
-# 	@prjoxide pack build/fpga_application.fasm build/fpga_application.bit
+# 	@prjoxide pack build/fpga_application.fasm build/fpga_rtl.bit
 	
-# 	@xxd -name fpga_application \
-# 	     -include build/fpga_application.bit \
-# 		 build/fpga_application_temp.h
+# 	@xxd -i build/fpga_rtl.bit \
+# 		 build/fpga_binfile_ram.h
 
-# 	@sed '1s/^/const /' build/fpga_application_temp.h > fpga/fpga_application.h
+# 	@sed '1s/^/const /' build/fpga_binfile_ram.h > $@
 
 application_core/fpga_application.h: $(FPGA_RTL_SOURCE_FILES)
 	

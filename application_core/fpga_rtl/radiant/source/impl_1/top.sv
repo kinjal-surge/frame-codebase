@@ -1,4 +1,6 @@
-module top (
+module top #(
+    SIM = 0
+) (
 	output logic cam_clk24,
 	input logic sck,
 	input logic copi,
@@ -8,12 +10,19 @@ module top (
 	inout wire mipi_clk_n,
 	inout wire mipi_data_p,
 	inout wire mipi_data_n,
-    output logic display_clk_o,
+    output logic display_clock,
     output logic display_hsync,
     output logic display_vsync,
-    output logic [3:0] display_y,
-    output logic [2:0] display_cr,
-    output logic [2:0] display_cb
+    output logic display_y0,
+	output logic display_y1,
+	output logic display_y2,
+	output logic display_y3,
+    output logic display_cr0,
+	output logic display_cr1,
+	output logic display_cr2,
+    output logic display_cb0,
+	output logic display_cb1,
+	output logic display_cb2
 );
 
 logic hf_clk90;
@@ -22,23 +31,23 @@ osc_ip osc_ip_inst (
     .hf_clk_out_o(hf_clk90)
 );
 
-logic if_clk360, display_clk27, pll_lock;
+logic if_clk, display_clk, pll_lock;
 logic sync_clk96, pixel_clk, pixelx4_clk;
 pll_ip pll_ip_inst (
 	.clki_i(hf_clk90),
 	.clkop_o(cam_clk24),
-	.clkos_o(display_clk27),
+	.clkos_o(pixel_clk),
 	.clkos2_o(pixelx4_clk),
-	.clkos3_o(sync_clk96),
-	.clkos4_o(pixel_clk),
-	.clkos5_o(if_clk360),
+	.clkos3_o(display_clk),
+	.clkos4_o(),
+	//.clkos5_o(if_clk),
 	.lock_o(pll_lock)
 );
 
 logic [8:0] counter = 0;
 
 // reset delay delay 
-always @(posedge if_clk360) begin
+always @(posedge pixelx4_clk) begin
 	if (counter[5] == 0) counter <= counter + 1;
 end
 
@@ -54,7 +63,7 @@ reset_sync reset_sync_cam(
 
 logic reset_n_display;
 reset_sync reset_sync_display(
-	.clk(display_clk27),
+	.clk(display_clk),
 	.async_reset_n(global_reset_n),
 	.sync_reset_n(reset_n_display)
 );
@@ -234,75 +243,82 @@ logic [9:0] rgb10;
 logic wr_en;
 logic [15:0] wr_addr;
 logic [31:0] dbg;
-simple_bayer 
-//#(
-    //.HSIZE('d256),
-    //.X_OFFSET(0),
-    //.Y_OFFSET(0),
-    //.X('d256),
-    //.Y('d8)
-//) 
-bayer (
-    .clk(pixelx4_clk),
-	.pixel_clk(pixel_clk),
-    .reset_n(reset_n_pixel),
-    .pixel_data(pd),
-    .lv(lv),
-    .fv(fv),
-    .rgb10(rgb10),
-	.rgb30(rgb30),
-    .address(wr_addr),
-    .wr_en(wr_en),
-	.dbg(dbg)
-);
+
+generate
+    if(SIM)
+        simple_bayer 
+            #(
+                .HSIZE('d256),
+                .X_OFFSET(0),
+                .Y_OFFSET(0),
+                .X('d256),
+                .Y('d8)
+            ) bayer (
+                .clk(pixelx4_clk),
+                .pixel_clk(pixel_clk),
+                .reset_n(reset_n_pixel),
+                .pixel_data(pd),
+                .lv(lv),
+                .fv(fv),
+                .rgb10(rgb10),
+                .rgb30(rgb30),
+                .address(wr_addr),
+                .wr_en(wr_en),
+                .dbg(dbg)
+            );
+    
+    else
+        simple_bayer bayer (
+            .clk(pixelx4_clk),
+            .pixel_clk(pixel_clk),
+            .reset_n(reset_n_pixel),
+            .pixel_data(pd),
+            .lv(lv),
+            .fv(fv),
+            .rgb10(rgb10),
+            .rgb30(rgb30),
+            .address(wr_addr),
+            .wr_en(wr_en),
+            .dbg(dbg)
+        );
+endgenerate
 
 logic [29:0] rd_data;
 logic [15:0] rd_addr;
 logic rd_en;
 
-/*
-ram_inferred #(
-	.ADDR(16),
-	.DATA(30)
-) ram_inst (
-	.clk(pixelx4_clk),
-	.rst_n(reset_n_pixel),
-	.wr_addr(wr_addr),
-	.rd_addr(rd_addr),
-	.wr_data(rgb30),
-	.rd_data(rd_data),
-	.wr_en(wr_en & !rd_en),
-	.rd_en(rd_en)
-);
-*/
-
-/*
-ram_inferred_500B ram_inst (
-	.clk(pixelx4_clk),
-	.rst_n(reset_n_pixel),
-	.wr_addr(wr_addr),
-	.rd_addr(rd_addr),
-	.wr_data(rgb10),
-	.rd_data(rd_data),
-	.wr_en(wr_en & !rd_en),
-	.rd_en(rd_en)
-);
-*/
-
-ram_ip ram_inst (
-		.clk_i(pixelx4_clk),
-        .dps_i(1'b0),
-        .rst_i(~reset_n_pixel),
-        .wr_clk_en_i(reset_n_pixel),
-        .rd_clk_en_i(reset_n_pixel),
-        .wr_en_i(wr_en),
-        .wr_data_i(rgb30),
-        .wr_addr_i(wr_addr),
-        .rd_addr_i(rd_addr),
-        .rd_data_o(rd_data),
-        .lramready_o( ),
-        .rd_datavalid_o( )
-);
+generate
+    if(SIM)
+        ram_inferred #(
+            .ADDR(16),
+            .DATA(30)
+        ) ram_inst (
+            .clk(pixelx4_clk),
+            .rst_n(reset_n_pixel),
+            .wr_addr(wr_addr),
+            .rd_addr(rd_addr),
+            .wr_data(rgb30),
+            .rd_data(rd_data),
+            .wr_en(wr_en & !rd_en),
+            .rd_en(rd_en)
+        );
+    
+    else
+        ram_ip ram_inst (
+                .clk_i(pixelx4_clk),
+                .dps_i(1'b0),
+                .rst_i(~reset_n_pixel),
+                .wr_clk_en_i(reset_n_pixel),
+                .rd_clk_en_i(reset_n_pixel),
+                .wr_en_i(wr_en),
+                .wr_data_i(rgb30),
+                .wr_addr_i(wr_addr),
+                .rd_addr_i(rd_addr),
+                .rd_data_o(rd_data),
+                .lramready_o( ),
+                .rd_datavalid_o( )
+        );
+endgenerate
 
 spi spi_inst (
 	.clk(pixelx4_clk),
@@ -315,16 +331,24 @@ spi spi_inst (
 );
 
 display display_inst (
-    .clk(display_clk27),
+    .clk(display_clk),
 	.reset_n(reset_n_display),
-    .hsync(hsync),
-    .vsync(vsync),
-    .y(display_Y),
-    .cr(display_cr),
-    .cb(display_cb)
+    .clock_out(display_clock),
+    .hsync(display_hsync),
+    .vsync(display_vsync),
+    .y0(display_y0),
+    .y1(display_y1),
+    .y2(display_y2),
+    .y3(display_y3),
+    .cr0(display_cr0),
+    .cr1(display_cr1),
+    .cr2(display_cr2),
+    .cb0(display_cb0),
+    .cb1(display_cb1),
+    .cb2(display_cb2)
 );
 
-assign display_clk_o = display_clk27 & reset_n_display;
+// assign display_clk_o = display_clk & reset_n_display;
 
 // DEBUG SECTION
 logic [3:0] fv_;
@@ -340,7 +364,7 @@ end
 logic [31:0] rx_pixel_counter;
 always @(posedge pixel_clk) begin
 	if (!lv) begin
-		if (rx_pixel_counter > 'd0) $display("rx %d pixels", rx_pixel_counter);
+		if (rx_pixel_counter > 'd0 && SIM) $display("rx %d pixels", rx_pixel_counter);
 		rx_pixel_counter <= 0;
 	end
 	else begin

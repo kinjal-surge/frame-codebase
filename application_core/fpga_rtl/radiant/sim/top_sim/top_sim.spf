@@ -1,0 +1,24 @@
+<RadiantSimulationProject path="sim" stage="0" language="1" version="2.0" name="top_sim" simType="ModelSim">
+    <Source path="source/impl_1/top.sv" type="VERILOG" worklib="work" include="none" langstandard="System Verilog"/>
+    <Source path="source/impl_1/spi.sv" type="VERILOG" worklib="work" include="none" langstandard="System Verilog"/>
+    <Source path="source/impl_1/reset_sync.sv" type="VERILOG" worklib="work" include="none" langstandard="System Verilog"/>
+    <Source path="osc_ip/rtl/osc_ip.v" type="VERILOG" worklib="work" include="none" langstandard=""/>
+    <Source path="byte2pixel_ip/rtl/byte2pixel_ip.v" type="VERILOG" worklib="work" include="none" langstandard=""/>
+    <Source path="dphy_rx_ip/rtl/dphy_rx_ip.v" type="VERILOG" worklib="work" include="none" langstandard=""/>
+    <Source path="pll_ip/rtl/pll_ip.v" type="VERILOG" worklib="work" include="none" langstandard=""/>
+    <Source path="sim/csi_tx/rtl/csi_tx.v" type="VERILOG" worklib="work" include="none" langstandard=""/>
+    <Source path="sim/pix2byte/rtl/pix2byte.v" type="VERILOG" worklib="work" include="none" langstandard=""/>
+    <Source path="sim/colorbar_gen.v" type="VERILOG" worklib="work" include="none" langstandard="Verilog 2001"/>
+    <Source path="sim/image_gen.sv" type="VERILOG" worklib="work" include="none" langstandard="System Verilog"/>
+    <Source path="source/impl_1/frame_buffer.sv" type="VERILOG" worklib="work" include="none" langstandard="System Verilog"/>
+    <Source path="ram_ip/rtl/ram_ip.v" type="VERILOG" worklib="work" include="none" langstandard=""/>
+    <Source path="source/impl_1/ram_inferred.sv" type="VERILOG" worklib="work" include="none" langstandard="System Verilog"/>
+    <Source path="source/impl_1/simple_bayer.sv" type="VERILOG" worklib="work" include="none" langstandard="System Verilog"/>
+    <Source path="source/impl_1/display.sv" type="VERILOG" worklib="work" include="none" langstandard="System Verilog"/>
+    <Source path="sim/top_sim/tb_top.sv" type="VERILOG" worklib="" include="none" langstandard=""/>
+    <SimLib value="pmi_work ovi_lifcl"/>
+    <GlbInc value=""/>
+    <Macro value=""/>
+    <Udo value=""/>
+    <TopModule instance="" language="VERILOG" name="tb_top"/>
+</RadiantSimulationProject>
