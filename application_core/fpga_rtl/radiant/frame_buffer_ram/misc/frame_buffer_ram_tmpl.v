@@ -1,0 +1,12 @@
+    frame_buffer_ram __(.clk_i( ),
+        .dps_i( ),
+        .rst_i( ),
+        .wr_clk_en_i( ),
+        .rd_clk_en_i( ),
+        .wr_en_i( ),
+        .wr_data_i( ),
+        .wr_addr_i( ),
+        .rd_addr_i( ),
+        .rd_data_o( ),
+        .lramready_o( ),
+        .rd_datavalid_o( ));

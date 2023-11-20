@@ -17,10 +17,10 @@ set ::bali::simulation::Para(SIMULATIONINSTANCE) {}
 set ::bali::simulation::Para(LANGUAGE) {VERILOG}
 set ::bali::simulation::Para(SDFPATH)  {}
 set ::bali::simulation::Para(INSTALLATIONPATH) {/home/rohit/lscc/radiant/2023.1}
-set ::bali::simulation::Para(MEMPATH) {/home/rohit/Downloads/frame-codebase/application_core/fpga_rtl/radiant/byte2pixel_ip;/home/rohit/Downloads/frame-codebase/application_core/fpga_rtl/radiant/dphy_rx_ip;/home/rohit/Downloads/frame-codebase/application_core/fpga_rtl/radiant/osc_ip;/home/rohit/Downloads/frame-codebase/application_core/fpga_rtl/radiant/pll_ip;/home/rohit/Downloads/frame-codebase/application_core/fpga_rtl/radiant/ram_ip;/home/rohit/Downloads/frame-codebase/application_core/fpga_rtl/radiant/sim/csi_tx;/home/rohit/Downloads/frame-codebase/application_core/fpga_rtl/radiant/sim/pix2byte}
+set ::bali::simulation::Para(MEMPATH) {/home/rohit/Downloads/frame-codebase/application_core/fpga_rtl/radiant/byte2pixel_ip;/home/rohit/Downloads/frame-codebase/application_core/fpga_rtl/radiant/dphy_rx_ip;/home/rohit/Downloads/frame-codebase/application_core/fpga_rtl/radiant/frame_buffer_ram;/home/rohit/Downloads/frame-codebase/application_core/fpga_rtl/radiant/osc_ip;/home/rohit/Downloads/frame-codebase/application_core/fpga_rtl/radiant/pll_ip;/home/rohit/Downloads/frame-codebase/application_core/fpga_rtl/radiant/ram_ip;/home/rohit/Downloads/frame-codebase/application_core/fpga_rtl/radiant/sim/csi_tx;/home/rohit/Downloads/frame-codebase/application_core/fpga_rtl/radiant/sim/pix2byte}
 set ::bali::simulation::Para(UDOLIST) {}
 set ::bali::simulation::Para(ADDTOPLEVELSIGNALSTOWAVEFORM)  {1}
-set ::bali::simulation::Para(RUNSIMULATION)  {1}
+set ::bali::simulation::Para(RUNSIMULATION)  {0}
 set ::bali::simulation::Para(SIMULATIONTIME)  {100}
 set ::bali::simulation::Para(SIMULATIONTIMEUNIT)  {ns}
 set ::bali::simulation::Para(ISRTL)  {1}

@@ -14,6 +14,7 @@ module simple_bayer #(
     input logic fv,
     output logic [29:0] rgb30,
 	output logic [9:0] rgb10,
+	output logic [7:0] rgb8,
     output logic [17:0] address,
     output logic wr_en,
 	output logic [31:0] dbg
@@ -34,6 +35,7 @@ logic [9:0] b;
 
 assign rgb30 = wr_en ? {r, g, b} : 'b0;
 assign rgb10 = wr_en ? {r[9:7], g[9:6], b[9:7]} : 'b0;
+assign rgb8 = wr_en ? {r[9:8], g[9:7], b[9:8]} : 'b0;
 
 logic lv_d, pending;
 logic [1:0] pixel_clk_;

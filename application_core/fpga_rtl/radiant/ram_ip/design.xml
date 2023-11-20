@@ -12,24 +12,24 @@
                     <ipxact:configurableElementValue referenceId="FAMILY">LIFCL</ipxact:configurableElementValue>
                     <ipxact:configurableElementValue referenceId="T_FAMILY">LIFCL</ipxact:configurableElementValue>
                     <ipxact:configurableElementValue referenceId="MEM_ID">ram_ip</ipxact:configurableElementValue>
-                    <ipxact:configurableElementValue referenceId="MEM_SIZE">30,40000</ipxact:configurableElementValue>
+                    <ipxact:configurableElementValue referenceId="MEM_SIZE">8,40000</ipxact:configurableElementValue>
                     <ipxact:configurableElementValue referenceId="WADDR_DEPTH">40000</ipxact:configurableElementValue>
-                    <ipxact:configurableElementValue referenceId="WDATA_WIDTH">30</ipxact:configurableElementValue>
+                    <ipxact:configurableElementValue referenceId="WDATA_WIDTH">8</ipxact:configurableElementValue>
                     <ipxact:configurableElementValue referenceId="RADDR_DEPTH">40000</ipxact:configurableElementValue>
-                    <ipxact:configurableElementValue referenceId="RDATA_WIDTH">30</ipxact:configurableElementValue>
+                    <ipxact:configurableElementValue referenceId="RDATA_WIDTH">8</ipxact:configurableElementValue>
                     <ipxact:configurableElementValue referenceId="WADDR_WIDTH">16</ipxact:configurableElementValue>
                     <ipxact:configurableElementValue referenceId="REGMODE">False</ipxact:configurableElementValue>
                     <ipxact:configurableElementValue referenceId="EN_RDOUT_CLK">False</ipxact:configurableElementValue>
                     <ipxact:configurableElementValue referenceId="RESETMODE">sync</ipxact:configurableElementValue>
                     <ipxact:configurableElementValue referenceId="RESET_RELEASE">sync</ipxact:configurableElementValue>
                     <ipxact:configurableElementValue referenceId="BYTE_ENABLE">False</ipxact:configurableElementValue>
-                    <ipxact:configurableElementValue referenceId="BYTE_WIDTH">3</ipxact:configurableElementValue>
+                    <ipxact:configurableElementValue referenceId="BYTE_WIDTH">1</ipxact:configurableElementValue>
                     <ipxact:configurableElementValue referenceId="RADDR_WIDTH">16</ipxact:configurableElementValue>
                     <ipxact:configurableElementValue referenceId="ECC_ENABLE">False</ipxact:configurableElementValue>
                     <ipxact:configurableElementValue referenceId="UNALIGNED_READ">False</ipxact:configurableElementValue>
                     <ipxact:configurableElementValue referenceId="PRESERVE_ARRAY">True</ipxact:configurableElementValue>
                     <ipxact:configurableElementValue referenceId="GSR_EN">False</ipxact:configurableElementValue>
-                    <ipxact:configurableElementValue referenceId="INIT_MODE">all_zero</ipxact:configurableElementValue>
+                    <ipxact:configurableElementValue referenceId="INIT_MODE">none</ipxact:configurableElementValue>
                     <ipxact:configurableElementValue referenceId="INIT_FILE">none</ipxact:configurableElementValue>
                     <ipxact:configurableElementValue referenceId="INIT_FILE_FORMAT">hex</ipxact:configurableElementValue>
                     <ipxact:configurableElementValue referenceId="INITVAL_00">0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000</ipxact:configurableElementValue>
@@ -214,7 +214,7 @@
                 <ipxact:externalPortReference portRef="wr_data_i">
                     <ipxact:partSelect>
                         <ipxact:range>
-                            <ipxact:left>29</ipxact:left>
+                            <ipxact:left>7</ipxact:left>
                             <ipxact:right>0</ipxact:right>
                         </ipxact:range>
                     </ipxact:partSelect>
@@ -256,7 +256,7 @@
                 <ipxact:externalPortReference portRef="rd_data_o">
                     <ipxact:partSelect>
                         <ipxact:range>
-                            <ipxact:left>29</ipxact:left>
+                            <ipxact:left>7</ipxact:left>
                             <ipxact:right>0</ipxact:right>
                         </ipxact:range>
                     </ipxact:partSelect>

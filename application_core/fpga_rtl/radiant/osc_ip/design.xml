@@ -10,9 +10,9 @@
             <ipxact:componentRef library="module" name="osc" vendor="latticesemi.com" version="1.4.0">
                 <ipxact:configurableElementValues>
                     <ipxact:configurableElementValue referenceId="HF_OSC_EN">ENABLED</ipxact:configurableElementValue>
-                    <ipxact:configurableElementValue referenceId="HF_CLK_DIV_DEC">12</ipxact:configurableElementValue>
-                    <ipxact:configurableElementValue referenceId="HF_CLK_DIV">11</ipxact:configurableElementValue>
-                    <ipxact:configurableElementValue referenceId="HF_CLK_FREQ">37.5</ipxact:configurableElementValue>
+                    <ipxact:configurableElementValue referenceId="HF_CLK_DIV_DEC">25</ipxact:configurableElementValue>
+                    <ipxact:configurableElementValue referenceId="HF_CLK_DIV">24</ipxact:configurableElementValue>
+                    <ipxact:configurableElementValue referenceId="HF_CLK_FREQ">18.0</ipxact:configurableElementValue>
                     <ipxact:configurableElementValue referenceId="HF_CFG_EN">ENABLED</ipxact:configurableElementValue>
                     <ipxact:configurableElementValue referenceId="LF_OUTPUT_EN">DISABLED</ipxact:configurableElementValue>
                     <ipxact:configurableElementValue referenceId="LF_CLK_FREQ">32</ipxact:configurableElementValue>

@@ -4,4 +4,5 @@
         .clkos2_o(clkos2_o),
         .clkos3_o(clkos3_o),
         .clkos4_o(clkos4_o),
+        .clkos5_o(clkos5_o),
         .lock_o(lock_o));

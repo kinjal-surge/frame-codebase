@@ -13,14 +13,13 @@ GSR GSR_INST (.GSR_N(USER_GSR), .CLK(CLK_GSR));
 logic hf_clk90 = 1;
 logic pll_lock_dphy, pll_lock;
 logic sync_clk96, pixel_clk36, pixel_clk;
-logic if_clk, display_clk, pll_lock;
-logic sync_clk96, pixel_clk, pixelx4_clk;
+
 pll_ip pll_ip_inst (
 	.clki_i(hf_clk90),
-	.clkop_o(cam_clk24),
+	.clkop_o(),
 	.clkos_o(pixel_clk36),
 	.clkos2_o(pixelx4_clk),
-	.clkos3_o(display_clk),
+	.clkos3_o(),
 	.clkos4_o(sync_clk),
 	// .clkos5_o(if_clk),
 	.lock_o(pll_lock)
@@ -265,9 +264,9 @@ spi_controller spi_controller_inst (
 );
 
 logic display_clock, display_hsync, display_vsync;
-logic display_y0, display_y1, display_y2, display_y3;
-logic display_cr0, display_cr1, display_cr2;
-logic display_cb0, display_cb1, display_cb2;
+logic [3:0] display_y;
+logic [2:0] display_cr;
+logic [2:0] display_cb;
 top #(
 	.SIM(1)
 ) dut (

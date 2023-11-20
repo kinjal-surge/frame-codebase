@@ -1,5 +1,3 @@
 colorbar_gen,/,/home/rohit/Downloads/frame-codebase/application_core/fpga_rtl/radiant/sim/colorbar_gen.v
-frame_buffer,/,/home/rohit/Downloads/frame-codebase/application_core/fpga_rtl/radiant/source/impl_1/frame_buffer.sv
 ram_inferred_500B,/,/home/rohit/Downloads/frame-codebase/application_core/fpga_rtl/radiant/source/impl_1/ram_inferred.sv
-display2,/,/home/rohit/Downloads/frame-codebase/application_core/fpga_rtl/radiant/source/impl_1/display.sv
 tb_top,/,/home/rohit/Downloads/frame-codebase/application_core/fpga_rtl/radiant/sim/top_sim/tb_top.sv

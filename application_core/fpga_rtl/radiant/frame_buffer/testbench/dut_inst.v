@@ -1,0 +1,12 @@
+    frame_buffer u_frame_buffer(.clk_i(clk_i),
+        .dps_i(dps_i),
+        .rst_i(rst_i),
+        .wr_clk_en_i(wr_clk_en_i),
+        .rd_clk_en_i(rd_clk_en_i),
+        .wr_en_i(wr_en_i),
+        .wr_data_i(wr_data_i),
+        .wr_addr_i(wr_addr_i),
+        .rd_addr_i(rd_addr_i),
+        .rd_data_o(rd_data_o),
+        .lramready_o(lramready_o),
+        .rd_datavalid_o(rd_datavalid_o));

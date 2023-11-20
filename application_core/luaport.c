@@ -95,8 +95,8 @@ void run_lua(void)
         error_with_message("Cannot create lua state: not enough memory");
     }
 
-    luaL_openlibs(L);
-    microphone_open_library(L);
+    // luaL_openlibs(L);
+    // microphone_open_library(L);
 
     char *version_string = LUA_RELEASE " on Brilliant Frame";
     lua_writestring((uint8_t *)version_string, strlen(version_string));

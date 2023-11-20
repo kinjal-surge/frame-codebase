@@ -13,16 +13,9 @@ module top #(
     output logic display_clock,
     output logic display_hsync,
     output logic display_vsync,
-    output logic display_y0,
-	output logic display_y1,
-	output logic display_y2,
-	output logic display_y3,
-    output logic display_cr0,
-	output logic display_cr1,
-	output logic display_cr2,
-    output logic display_cb0,
-	output logic display_cb1,
-	output logic display_cb2
+    output logic [3:0] display_y,
+    output logic [2:0] display_cr,
+	output logic [2:0] display_cb
 );
 
 logic hf_clk90;
@@ -45,11 +38,49 @@ pll_ip pll_ip_inst (
 );
 
 logic [8:0] counter = 0;
-
+logic [17:0] pixel_counter = 0 /* synthesis syn_keep=1 nomerge=""*/;
+logic ram_init = 1;
+logic [17:0] ram_init_addr /* synthesis syn_keep=1 nomerge=""*/;
+logic [3:0] ram_init_data /* synthesis syn_keep=1 nomerge=""*/;
+logic [3:0] ram_delay_counter = 0;
+logic fb_reset_n = 0;
+logic fb_rdy;
 // reset delay delay 
-always @(posedge pixelx4_clk) begin
-	if (counter[5] == 0) counter <= counter + 1;
+always @(posedge display_clk) begin
+	if(pll_lock) begin
+		if (ram_delay_counter[3] == 0) begin
+			ram_delay_counter <= ram_delay_counter+1;
+			fb_reset_n <= 0;
+            pixel_counter <= 0;
+		end
+		else begin
+			fb_reset_n <= 1;
+			
+			if (fb_rdy) begin
+				if (pixel_counter < 'd256000) begin
+					ram_init <= 1;
+					pixel_counter <= pixel_counter + 1;
+					ram_init_addr <= pixel_counter;
+                    if (pixel_counter[2])
+					    ram_init_data <= 'd1;
+                    else 
+                        ram_init_data <= 'd2;
+				end
+				else begin
+					ram_init <= 0;
+					if (counter[5] == 0) counter <= counter + 1;
+				end
+			end
+		end
+	end
+	else fb_reset_n <= 0;
 end
+
+// always @(posedge display_clk) begin
+//     fb_reset_n <= 1;
+//     ram_init <= 0;
+// 	if (counter[5] == 0 && pll_lock) counter <= counter + 1;
+// end
 
 logic global_reset_n;
 assign global_reset_n = pll_lock && counter[5];
@@ -73,13 +104,6 @@ reset_sync reset_sync_pixel(
 	.clk(pixel_clk),
 	.async_reset_n(global_reset_n),
 	.sync_reset_n(reset_n_pixel)
-);
-
-logic reset_n_sync;
-reset_sync reset_sync_sync(
-	.clk(sync_clk96),
-	.async_reset_n(global_reset_n),
-	.sync_reset_n(reset_n_sync)
 );
 
 logic byte_clk, byte_clk_hs, reset_n_byte;
@@ -240,8 +264,9 @@ byte2pixel_ip byte2pixel_ip_inst (
 
 logic [29:0] rgb30;
 logic [9:0] rgb10;
-logic wr_en;
-logic [15:0] wr_addr;
+logic [7:0] rgb8;
+logic cam_wr_en;
+logic [15:0] cam_wr_addr;
 logic [31:0] dbg;
 
 generate
@@ -262,8 +287,8 @@ generate
                 .fv(fv),
                 .rgb10(rgb10),
                 .rgb30(rgb30),
-                .address(wr_addr),
-                .wr_en(wr_en),
+                .address(cam_wr_addr),
+                .wr_en(cam_wr_en),
                 .dbg(dbg)
             );
     
@@ -277,15 +302,16 @@ generate
             .fv(fv),
             .rgb10(rgb10),
             .rgb30(rgb30),
-            .address(wr_addr),
-            .wr_en(wr_en),
+			.rgb8(rgb8),
+            .address(cam_wr_addr),
+            .wr_en(cam_wr_en),
             .dbg(dbg)
         );
 endgenerate
 
-logic [29:0] rd_data;
-logic [15:0] rd_addr;
-logic rd_en;
+logic [7:0] cam_rd_data;
+logic [17:0] cam_rd_addr;
+logic cam_rd_en;
 
 generate
     if(SIM)
@@ -295,12 +321,12 @@ generate
         ) ram_inst (
             .clk(pixelx4_clk),
             .rst_n(reset_n_pixel),
-            .wr_addr(wr_addr),
-            .rd_addr(rd_addr),
+            .wr_addr(cam_wr_addr),
+            .rd_addr(cam_rd_addr),
             .wr_data(rgb30),
-            .rd_data(rd_data),
-            .wr_en(wr_en & !rd_en),
-            .rd_en(rd_en)
+            .rd_data(cam_rd_data),
+            .wr_en(cam_wr_en & !cam_rd_en),
+            .rd_en(cam_rd_en)
         );
     
     else
@@ -310,24 +336,38 @@ generate
                 .rst_i(~reset_n_pixel),
                 .wr_clk_en_i(reset_n_pixel),
                 .rd_clk_en_i(reset_n_pixel),
-                .wr_en_i(wr_en),
-                .wr_data_i(rgb30),
-                .wr_addr_i(wr_addr),
-                .rd_addr_i(rd_addr),
-                .rd_data_o(rd_data),
+                .wr_en_i(cam_wr_en),
+                .wr_data_i(rgb8),
+                .wr_addr_i(cam_wr_addr),
+                .rd_addr_i(cam_rd_addr),
+                .rd_data_o(cam_rd_data),
                 .lramready_o( ),
                 .rd_datavalid_o( )
         );
 endgenerate
 
+//TODO: fix spi read cam image 8b instead of 30
 spi spi_inst (
 	.clk(pixelx4_clk),
 	.reset(~reset_n_pixel),
-    .rd_en(rd_en),
-    .rd_addr(rd_addr),
-    .rd_data(rd_data),
+    .rd_en(cam_rd_en),
+    .rd_addr(cam_rd_addr),
+    .rd_data(cam_rd_data),
 	.debug32(dbg),
 	.*
+);
+
+logic [3:0] disp_rd_data;
+logic [17:0] disp_rd_addr;
+frame_buffer #(.SIM(SIM)) frame_buffer_inst (
+	.clk(display_clk),
+	.rst_n(fb_reset_n),
+	.rd_addr(disp_rd_addr),
+	.wr_addr(ram_init_addr),
+	.wr_data(ram_init_data),
+	.rd_data(disp_rd_data),
+	.wr_en(ram_init),
+	.ready(fb_rdy)
 );
 
 display display_inst (
@@ -336,19 +376,12 @@ display display_inst (
     .clock_out(display_clock),
     .hsync(display_hsync),
     .vsync(display_vsync),
-    .y0(display_y0),
-    .y1(display_y1),
-    .y2(display_y2),
-    .y3(display_y3),
-    .cr0(display_cr0),
-    .cr1(display_cr1),
-    .cr2(display_cr2),
-    .cb0(display_cb0),
-    .cb1(display_cb1),
-    .cb2(display_cb2)
+    .y(display_y),
+    .cr(display_cr),
+    .cb(display_cb),
+    .rd_addr(disp_rd_addr),
+    .color(disp_rd_data)
 );
-
-// assign display_clk_o = display_clk & reset_n_display;
 
 // DEBUG SECTION
 logic [3:0] fv_;
@@ -374,6 +407,5 @@ always @(posedge pixel_clk) begin
 		end
 	end
 end
-
 
 endmodule

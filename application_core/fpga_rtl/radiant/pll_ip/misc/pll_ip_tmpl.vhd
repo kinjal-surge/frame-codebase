@@ -6,6 +6,7 @@ component pll_ip is
         clkos2_o: out std_logic;
         clkos3_o: out std_logic;
         clkos4_o: out std_logic;
+        clkos5_o: out std_logic;
         lock_o: out std_logic
     );
 end component;
@@ -17,5 +18,6 @@ __: pll_ip port map(
     clkos2_o=>,
     clkos3_o=>,
     clkos4_o=>,
+    clkos5_o=>,
     lock_o=>
 );

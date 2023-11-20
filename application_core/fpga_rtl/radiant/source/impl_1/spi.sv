@@ -38,6 +38,7 @@ localparam DBG32_REG = 8'hB9;
 localparam DBG_RAM16 = 8'hBA;
 localparam DBG_RAM32 = 8'hBB;
 localparam CHIPID = 8'hAA;
+localparam DISPLAY = 8'hCC;
 
 // Registers to keep track of SCK and CS edges
 logic [1:0] cs_edge_monitor = 0;
