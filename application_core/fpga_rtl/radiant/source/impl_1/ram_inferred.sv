@@ -12,7 +12,7 @@ module ram_inferred #(
 	input logic rd_en
 );
 
-logic [DATA-1:0] mem [(2**ADDR)-1:0] /* synthesis syn_keep=1 nomerge=""*/;
+(* ram_style="huge" *) logic [DATA-1:0] mem [(2**ADDR)-1:0];
 
 always @(posedge clk) begin
 	if (rst_n & wr_en)
@@ -26,18 +26,17 @@ end
 
 endmodule
 
-module ram_inferred_500B (
+module ram_inferred_65536B (
 	input logic clk,
 	input logic rst_n,
-	input logic [8:0] wr_addr,
-	input logic [8:0] rd_addr,
-	input logic [9:0] wr_data,
-	output logic [9:0] rd_data,
-	input logic wr_en,
-	input logic rd_en
+	input logic [13:0] wr_addr,
+	input logic [13:0] rd_addr,
+	input logic [31:0] wr_data,
+	output logic [31:0] rd_data,
+	input logic wr_en
 );
 
-logic [9:0] mem [511:0] /* synthesis syn_keep=1 nomerge=""*/;
+(* ram_style="huge" *) reg [31:0] mem [0:16384];
 
 always @(posedge clk) begin
 	if (rst_n & wr_en)
@@ -45,7 +44,7 @@ always @(posedge clk) begin
 end
 
 always @(posedge clk) begin
-	if (rst_n & rd_en)
+	if (rst_n & !wr_en)
 		rd_data <= mem[rd_addr];
 end
 

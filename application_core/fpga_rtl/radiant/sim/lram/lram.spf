@@ -1,0 +1,8 @@
+<RadiantSimulationProject path="sim" name="lram" version="2.0" simType="ModelSim" stage="0" language="1">
+    <Source worklib="" path="sim/lram/tb_top.sv" type="VERILOG" langstandard="" include="none"/>
+    <SimLib value="pmi_work ovi_lifcl"/>
+    <GlbInc value=""/>
+    <Macro value=""/>
+    <Udo value=""/>
+    <TopModule name="tb_top" language="VERILOG" instance=""/>
+</RadiantSimulationProject>

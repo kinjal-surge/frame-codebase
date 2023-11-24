@@ -18,7 +18,7 @@
                     <ipxact:configurableElementValue referenceId="RADDR_DEPTH">40000</ipxact:configurableElementValue>
                     <ipxact:configurableElementValue referenceId="RDATA_WIDTH">8</ipxact:configurableElementValue>
                     <ipxact:configurableElementValue referenceId="WADDR_WIDTH">16</ipxact:configurableElementValue>
-                    <ipxact:configurableElementValue referenceId="REGMODE">False</ipxact:configurableElementValue>
+                    <ipxact:configurableElementValue referenceId="REGMODE">True</ipxact:configurableElementValue>
                     <ipxact:configurableElementValue referenceId="EN_RDOUT_CLK">False</ipxact:configurableElementValue>
                     <ipxact:configurableElementValue referenceId="RESETMODE">sync</ipxact:configurableElementValue>
                     <ipxact:configurableElementValue referenceId="RESET_RELEASE">sync</ipxact:configurableElementValue>

@@ -20,7 +20,7 @@
                     <ipxact:configurableElementValue referenceId="WADDR_WIDTH">17</ipxact:configurableElementValue>
                     <ipxact:configurableElementValue referenceId="REGMODE">True</ipxact:configurableElementValue>
                     <ipxact:configurableElementValue referenceId="EN_RDOUT_CLK">False</ipxact:configurableElementValue>
-                    <ipxact:configurableElementValue referenceId="RESETMODE">async</ipxact:configurableElementValue>
+                    <ipxact:configurableElementValue referenceId="RESETMODE">sync</ipxact:configurableElementValue>
                     <ipxact:configurableElementValue referenceId="RESET_RELEASE">sync</ipxact:configurableElementValue>
                     <ipxact:configurableElementValue referenceId="BYTE_ENABLE">False</ipxact:configurableElementValue>
                     <ipxact:configurableElementValue referenceId="BYTE_WIDTH">1</ipxact:configurableElementValue>
@@ -29,7 +29,7 @@
                     <ipxact:configurableElementValue referenceId="UNALIGNED_READ">False</ipxact:configurableElementValue>
                     <ipxact:configurableElementValue referenceId="PRESERVE_ARRAY">True</ipxact:configurableElementValue>
                     <ipxact:configurableElementValue referenceId="GSR_EN">False</ipxact:configurableElementValue>
-                    <ipxact:configurableElementValue referenceId="INIT_MODE">all_one</ipxact:configurableElementValue>
+                    <ipxact:configurableElementValue referenceId="INIT_MODE">none</ipxact:configurableElementValue>
                     <ipxact:configurableElementValue referenceId="INIT_FILE">none</ipxact:configurableElementValue>
                     <ipxact:configurableElementValue referenceId="INIT_FILE_FORMAT">hex</ipxact:configurableElementValue>
                     <ipxact:configurableElementValue referenceId="INITVAL_00">0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000</ipxact:configurableElementValue>

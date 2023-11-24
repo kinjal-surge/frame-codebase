@@ -29,3 +29,7 @@ def rgb2yuv(R, G, B):
     Cb = (B - Y) / d
     Cr = (R - Y) / e
     print(Y, Cb, Cr)
+
+with open('ram_init.txt', 'w') as f:
+    for i in range(65535):
+        f.write("00000001\n")

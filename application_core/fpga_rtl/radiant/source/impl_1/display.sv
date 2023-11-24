@@ -19,13 +19,15 @@ module display (
     output logic [2:0] cr,
     output logic [2:0] cb,
 	output logic [17:0] rd_addr,
-	input [3:0] color
+	input [3:0] color,
+	input ready
 );
 
 logic [15:0] hsync_counter;
 logic [15:0] vsync_counter;
+logic clk_counter;
 
-assign clock_out = clk & reset_n;
+assign clock_out = clk_counter & reset_n;
 
 always @(posedge clk) begin
 	if (!reset_n) begin
@@ -34,8 +36,15 @@ always @(posedge clk) begin
 		hsync_counter <= 0;
 		vsync_counter <= 0;
 		rd_addr <= 0;
+		clk_counter <= 0;
 	end
-	else begin
+	
+	if (reset_n) clk_counter <= clk_counter+1;
+	if (reset_n & !clk_counter) begin
+		if ((hsync_counter >= 122) && (hsync_counter < 762) && (vsync_counter >= 38) && (vsync_counter < 438))
+			rd_addr <= rd_addr + 1;
+	end
+	if (reset_n & clk_counter) begin
 		if (hsync_counter < 857) hsync_counter <= hsync_counter + 1;
 
 		else begin 
@@ -61,33 +70,37 @@ always @(posedge clk) begin
 
 		else vsync <= 1;
 
-		// if ((hsync_counter >= 122) && (hsync_counter < 762) && (vsync_counter >= 38) && (vsync_counter <= 438)) begin
 		if ((hsync_counter >= 122) && (hsync_counter < 762) && (vsync_counter >= 38) && (vsync_counter < 438)) begin
-			rd_addr <= rd_addr + 1;
 			case(color)
 			'd0:begin
-				// blue
-				 y <= 'b0100;
-				 cr <= 'b010;
-				 cb <= 'b111;
+				// white
+				y <= 'b1001;
+				cr <= 'b100;
+				cb <= 'b100;
 			end
-			'd1:begin	
+			'd1:begin
+				// blue
+				y <= 'b0100;
+				cr <= 'b010;
+				cb <= 'b111;
+			end
+			'd2:begin	
 				// red
 				y <= 'b0010;
 				cr <= 'b110;
 				cb <= 'b000;
 			end
-			'd2:begin
-				// pink
-				y <= 'b1111;
-				cr <= 'b111;
-				cb <= 'b111;
-			end
-			default:begin
-				// ??
+			'd3:begin
+				// green
 				y <= 'b0;
 				cr <= 'b0;
 				cb <= 'b0;
+			end
+			default:begin
+				// black
+				y <= 'b0001;
+				cr <= 'b100;
+				cb <= 'b100;
 			end
 			endcase
 		end

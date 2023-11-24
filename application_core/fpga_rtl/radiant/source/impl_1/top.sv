@@ -37,45 +37,6 @@ pll_ip pll_ip_inst (
 	.lock_o(pll_lock)
 );
 
-logic [8:0] counter = 0;
-logic [17:0] pixel_counter = 0 /* synthesis syn_keep=1 nomerge=""*/;
-logic ram_init = 1;
-logic [17:0] ram_init_addr /* synthesis syn_keep=1 nomerge=""*/;
-logic [3:0] ram_init_data /* synthesis syn_keep=1 nomerge=""*/;
-logic [3:0] ram_delay_counter = 0;
-logic fb_reset_n = 0;
-logic fb_rdy;
-// reset delay delay 
-always @(posedge display_clk) begin
-	if(pll_lock) begin
-		if (ram_delay_counter[3] == 0) begin
-			ram_delay_counter <= ram_delay_counter+1;
-			fb_reset_n <= 0;
-            pixel_counter <= 0;
-		end
-		else begin
-			fb_reset_n <= 1;
-			
-			if (fb_rdy) begin
-				if (pixel_counter < 'd256000) begin
-					ram_init <= 1;
-					pixel_counter <= pixel_counter + 1;
-					ram_init_addr <= pixel_counter;
-                    if (pixel_counter[2])
-					    ram_init_data <= 'd1;
-                    else 
-                        ram_init_data <= 'd2;
-				end
-				else begin
-					ram_init <= 0;
-					if (counter[5] == 0) counter <= counter + 1;
-				end
-			end
-		end
-	end
-	else fb_reset_n <= 0;
-end
-
 // always @(posedge display_clk) begin
 //     fb_reset_n <= 1;
 //     ram_init <= 0;
@@ -83,6 +44,7 @@ end
 // end
 
 logic global_reset_n;
+logic [8:0] counter = 0/* synthesis syn_keep=1 nomerge=""*/;
 assign global_reset_n = pll_lock && counter[5];
 
 logic reset_n_cam;
@@ -99,6 +61,8 @@ reset_sync reset_sync_display(
 	.sync_reset_n(reset_n_display)
 );
 
+logic fb_reset_n = 0;
+
 logic reset_n_pixel;
 reset_sync reset_sync_pixel(
 	.clk(pixel_clk),
@@ -112,6 +76,67 @@ reset_sync reset_sync_byte(
 	.async_reset_n(global_reset_n),
 	.sync_reset_n(reset_n_byte)
 );
+
+logic ram_init = 1;
+logic fb_wr_en;
+logic [17:0] fb_wr_addr;
+logic [3:0] fb_wr_data;
+logic [3:0] color;
+logic [9:0] x_pos;
+logic [9:0] y_pos;
+xy_to_addr xy_to_addr_inst (
+	.clk(display_clk),
+	.rst_n(fb_reset_n),
+	.x_pos(x_pos),
+	.y_pos(y_pos),
+	.color_i(color),
+	.en(ram_init),
+	.wr_en(fb_wr_en),
+	.wr_data(fb_wr_data),
+	.wr_addr(fb_wr_addr)
+);
+
+// reset delay 
+logic [20:0] pixel_counter/* synthesis syn_keep=1 nomerge=""*/;
+logic [31:0] ram_delay_counter = 0/* synthesis syn_keep=1 nomerge=""*/;
+logic fb_rdy;
+always @(posedge display_clk) begin
+	if(pll_lock) begin
+		if (ram_delay_counter[5] == 0) begin
+			ram_delay_counter <= ram_delay_counter+1;
+			fb_reset_n <= 0;
+            pixel_counter <= 0;
+		end
+		else begin
+			fb_reset_n <= 1;
+			
+			if (fb_rdy) begin
+				if (pixel_counter[12:3] < 'd400) begin
+					ram_init <= 1;
+					case (pixel_counter[2:0])
+						'd0: x_pos <= 'd320;
+						'd1: x_pos <= 'd321;
+						'd2: x_pos <= 'd322;
+						'd3: x_pos <= 'd323;
+						'd4: x_pos <= 'd324;
+						'd5: x_pos <= 'd325;
+						'd6: x_pos <= 'd326;
+						'd7: x_pos <= 'd327;
+					endcase
+					y_pos <= pixel_counter[12:3];
+					color <= 'd1;
+					if (fb_reset_n)
+						pixel_counter <= pixel_counter+1;
+				end
+				else begin
+					ram_init <= 0;
+					if (counter[5] == 0) counter <= counter + 1;
+				end
+			end
+		end
+	end
+	else fb_reset_n <= 0;
+end
 
 logic [9:0] pd /* synthesis syn_keep=1 nomerge=""*/;
 logic payload_en, sp_en, sp_en_d, lp_av_en, lp_en, lp_av_en_d /* synthesis syn_keep=1 nomerge=""*/;
@@ -363,10 +388,10 @@ frame_buffer #(.SIM(SIM)) frame_buffer_inst (
 	.clk(display_clk),
 	.rst_n(fb_reset_n),
 	.rd_addr(disp_rd_addr),
-	.wr_addr(ram_init_addr),
-	.wr_data(ram_init_data),
+	.wr_addr(fb_wr_addr),
+	.wr_data(fb_wr_data),
 	.rd_data(disp_rd_data),
-	.wr_en(ram_init),
+	.wr_en(fb_wr_en),
 	.ready(fb_rdy)
 );
 
@@ -380,7 +405,8 @@ display display_inst (
     .cr(display_cr),
     .cb(display_cb),
     .rd_addr(disp_rd_addr),
-    .color(disp_rd_data)
+    .color(disp_rd_data),
+    .ready(fb_rdy)
 );
 
 // DEBUG SECTION

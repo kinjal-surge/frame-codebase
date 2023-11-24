@@ -21,8 +21,8 @@ set ::bali::simulation::Para(MEMPATH) {/home/rohit/Downloads/frame-codebase/appl
 set ::bali::simulation::Para(UDOLIST) {}
 set ::bali::simulation::Para(ADDTOPLEVELSIGNALSTOWAVEFORM)  {1}
 set ::bali::simulation::Para(RUNSIMULATION)  {0}
-set ::bali::simulation::Para(SIMULATIONTIME)  {100}
-set ::bali::simulation::Para(SIMULATIONTIMEUNIT)  {ns}
+set ::bali::simulation::Para(SIMULATIONTIME)  {0}
+set ::bali::simulation::Para(SIMULATIONTIMEUNIT)  {}
 set ::bali::simulation::Para(ISRTL)  {1}
 set ::bali::simulation::Para(HDLPARAMETERS) {}
 ::bali::simulation::ModelSim_Run
