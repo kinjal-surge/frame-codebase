@@ -37,12 +37,6 @@ pll_ip pll_ip_inst (
 	.lock_o(pll_lock)
 );
 
-// always @(posedge display_clk) begin
-//     fb_reset_n <= 1;
-//     ram_init <= 0;
-// 	if (counter[5] == 0 && pll_lock) counter <= counter + 1;
-// end
-
 logic global_reset_n;
 logic [8:0] counter = 0/* synthesis syn_keep=1 nomerge=""*/;
 assign global_reset_n = pll_lock && counter[5];
@@ -62,7 +56,6 @@ reset_sync reset_sync_display(
 );
 
 logic fb_reset_n = 0;
-
 logic reset_n_pixel;
 reset_sync reset_sync_pixel(
 	.clk(pixel_clk),
@@ -77,44 +70,19 @@ reset_sync reset_sync_byte(
 	.sync_reset_n(reset_n_byte)
 );
 
-logic ram_init = 1;
-logic fb_wr_en;
-logic [17:0] fb_wr_addr;
+logic vector_engine_en, fb_wr_en, vector_engine_done;
 logic [3:0] fb_wr_data;
-logic [3:0] color;
-logic [9:0] x_pos;
-logic [9:0] y_pos;
-xy_to_addr xy_to_addr_inst (
+logic [17:0] fb_wr_addr;
+vector_engine vector_engine_inst (
 	.clk(display_clk),
-	.rst_n(fb_reset_n),
-	.x_pos(x_pos),
-	.y_pos(y_pos),
-	.color_i(color),
-	.en(ram_init),
-	.wr_en(fb_wr_en),
-	.wr_data(fb_wr_data),
-	.wr_addr(fb_wr_addr)
+	.reset_n(fb_reset_n),
+    .enable(vector_engine_en),
+	.wr_addr(fb_wr_addr),
+    .wr_data(fb_wr_data),
+    .wr_en(fb_wr_en),
+    .done(vector_engine_done)
 );
 
-logic line_ready, line_en, line_rdy;
-logic [9:0] line_x0;
-logic [9:0] line_x1;
-logic [8:0] line_y0;
-logic [8:0] line_y1;
-logic [9:0] line_x_pos;
-logic [8:0] line_y_pos;
-line line_inst (
-    .clk(display_clk),
-    .enable(line_en),
-    .reset_n(fb_reset_n),
-    .x0(line_x0),
-    .x1(line_x1),
-    .y0(line_y0),
-    .y1(line_y1),
-    .horizontal(line_x_pos),
-    .vertical(line_y_pos),
-    .ready(line_rdy)
-);
 
 // reset delay 
 logic [20:0] pixel_counter/* synthesis syn_keep=1 nomerge=""*/;
@@ -134,50 +102,17 @@ always @(posedge display_clk) begin
                 'd0: begin
                     fb_reset_n <= 1;
                     if (fb_rdy) begin
-                        line_en <= 1;
-                        ram_init <= 1;
-                        line_x0 <= 'd0;
-                        line_y0 <= 'd0;
-                        line_x1 <= 'd639;
-                        line_y1 <= 'd399;
-                        color <= 'd3;
-                        if (line_en) // wait for line_en to be set
-                            init_state <= init_state+1;
+                        init_state <= init_state+1;
+                        vector_engine_en <= 1;
                     end
                 end
                 'd1: begin
-                    if (line_rdy) begin
+                    if (vector_engine_done) begin
                         init_state <= init_state+1;
-                        line_en <= 0;
-                        ram_init <= 0;
-                    end else begin
-                        x_pos <= line_x_pos;
-                        y_pos <= line_y_pos;
+                        vector_engine_en <= 0;
                     end
                 end
                 'd2: begin
-                    line_en <= 1;
-                    ram_init <= 1;
-                    line_x0 <= 'd320;
-                    line_y0 <= 'd200;
-                    line_x1 <= 'd0;
-                    line_y1 <= 'd399;
-                    color <= 'd2;
-                    if (line_en) // wait for line_en to be set
-                        init_state <= init_state+1;
-                end
-                'd3: begin
-                    if (line_rdy) begin
-                        init_state <= init_state+1;
-                        line_en <= 0;
-                        ram_init <= 0;
-                    end else begin
-                        x_pos <= line_x_pos;
-                        y_pos <= line_y_pos;
-                    end
-                    counter <= 0;
-                end
-                'd4: begin
                     if (counter[5] == 0) counter <= counter + 1;
                 end
             endcase
