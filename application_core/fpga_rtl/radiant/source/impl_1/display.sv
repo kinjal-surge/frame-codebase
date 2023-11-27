@@ -73,8 +73,8 @@ always @(posedge clk) begin
 		if ((hsync_counter >= 122) && (hsync_counter < 762) && (vsync_counter >= 38) && (vsync_counter < 438)) begin
 			case(color)
 			'd0:begin
-				// white
-				y <= 'b1001;
+				// black
+				y <= 'b0001;
 				cr <= 'b100;
 				cb <= 'b100;
 			end
@@ -95,6 +95,12 @@ always @(posedge clk) begin
 				y <= 'b0;
 				cr <= 'b0;
 				cb <= 'b0;
+			end
+			'd4:begin
+				// white
+				y <= 'b1001;
+				cr <= 'b100;
+				cb <= 'b100;
 			end
 			default:begin
 				// black

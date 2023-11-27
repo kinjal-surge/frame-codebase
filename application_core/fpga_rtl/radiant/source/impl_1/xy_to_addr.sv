@@ -2,7 +2,7 @@ module xy_to_addr (
 	input logic clk,
 	input logic rst_n,
 	input logic [9:0] x_pos,
-	input logic [9:0] y_pos,
+	input logic [8:0] y_pos,
 	input logic en,
 	input logic [3:0] color_i,
 	output logic wr_en,

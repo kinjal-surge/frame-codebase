@@ -96,43 +96,91 @@ xy_to_addr xy_to_addr_inst (
 	.wr_addr(fb_wr_addr)
 );
 
+logic line_ready, line_en, line_rdy;
+logic [9:0] line_x0;
+logic [9:0] line_x1;
+logic [8:0] line_y0;
+logic [8:0] line_y1;
+logic [9:0] line_x_pos;
+logic [8:0] line_y_pos;
+line line_inst (
+    .clk(display_clk),
+    .enable(line_en),
+    .reset_n(fb_reset_n),
+    .x0(line_x0),
+    .x1(line_x1),
+    .y0(line_y0),
+    .y1(line_y1),
+    .horizontal(line_x_pos),
+    .vertical(line_y_pos),
+    .ready(line_rdy)
+);
+
 // reset delay 
 logic [20:0] pixel_counter/* synthesis syn_keep=1 nomerge=""*/;
 logic [31:0] ram_delay_counter = 0/* synthesis syn_keep=1 nomerge=""*/;
 logic fb_rdy;
+logic [7:0] init_state/* synthesis syn_keep=1 nomerge=""*/;
 always @(posedge display_clk) begin
 	if(pll_lock) begin
 		if (ram_delay_counter[5] == 0) begin
 			ram_delay_counter <= ram_delay_counter+1;
 			fb_reset_n <= 0;
             pixel_counter <= 0;
+            init_state <= 0;
 		end
 		else begin
-			fb_reset_n <= 1;
-			
-			if (fb_rdy) begin
-				if (pixel_counter[12:3] < 'd400) begin
-					ram_init <= 1;
-					case (pixel_counter[2:0])
-						'd0: x_pos <= 'd320;
-						'd1: x_pos <= 'd321;
-						'd2: x_pos <= 'd322;
-						'd3: x_pos <= 'd323;
-						'd4: x_pos <= 'd324;
-						'd5: x_pos <= 'd325;
-						'd6: x_pos <= 'd326;
-						'd7: x_pos <= 'd327;
-					endcase
-					y_pos <= pixel_counter[12:3];
-					color <= 'd1;
-					if (fb_reset_n)
-						pixel_counter <= pixel_counter+1;
-				end
-				else begin
-					ram_init <= 0;
-					if (counter[5] == 0) counter <= counter + 1;
-				end
-			end
+            case (init_state)
+                'd0: begin
+                    fb_reset_n <= 1;
+                    if (fb_rdy) begin
+                        line_en <= 1;
+                        ram_init <= 1;
+                        line_x0 <= 'd0;
+                        line_y0 <= 'd0;
+                        line_x1 <= 'd639;
+                        line_y1 <= 'd399;
+                        color <= 'd3;
+                        if (line_en) // wait for line_en to be set
+                            init_state <= init_state+1;
+                    end
+                end
+                'd1: begin
+                    if (line_rdy) begin
+                        init_state <= init_state+1;
+                        line_en <= 0;
+                        ram_init <= 0;
+                    end else begin
+                        x_pos <= line_x_pos;
+                        y_pos <= line_y_pos;
+                    end
+                end
+                'd2: begin
+                    line_en <= 1;
+                    ram_init <= 1;
+                    line_x0 <= 'd320;
+                    line_y0 <= 'd200;
+                    line_x1 <= 'd0;
+                    line_y1 <= 'd399;
+                    color <= 'd2;
+                    if (line_en) // wait for line_en to be set
+                        init_state <= init_state+1;
+                end
+                'd3: begin
+                    if (line_rdy) begin
+                        init_state <= init_state+1;
+                        line_en <= 0;
+                        ram_init <= 0;
+                    end else begin
+                        x_pos <= line_x_pos;
+                        y_pos <= line_y_pos;
+                    end
+                    counter <= 0;
+                end
+                'd4: begin
+                    if (counter[5] == 0) counter <= counter + 1;
+                end
+            endcase
 		end
 	end
 	else fb_reset_n <= 0;
