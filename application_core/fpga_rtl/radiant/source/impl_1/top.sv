@@ -70,19 +70,7 @@ reset_sync reset_sync_byte(
 	.sync_reset_n(reset_n_byte)
 );
 
-logic vector_engine_en, fb_wr_en, vector_engine_done;
-logic [3:0] fb_wr_data;
-logic [17:0] fb_wr_addr;
-vector_engine vector_engine_inst (
-	.clk(display_clk),
-	.reset_n(fb_reset_n),
-    .enable(vector_engine_en),
-	.wr_addr(fb_wr_addr),
-    .wr_data(fb_wr_data),
-    .wr_en(fb_wr_en),
-    .done(vector_engine_done)
-);
-
+logic vector_engine_en, vector_engine_done;
 
 // reset delay 
 logic [20:0] pixel_counter/* synthesis syn_keep=1 nomerge=""*/;
@@ -365,15 +353,45 @@ spi spi_inst (
 	.*
 );
 
-logic [3:0] disp_rd_data;
+logic [3:0] wr_color_idx;
+logic [9:0] wr_color_code;
+logic color_tab_wr_en;
+logic [3:0] rd_color_idx;
+logic [9:0] rd_color_code;
+color_table color_table_inst (
+    .clk(display_clk),
+    .reset_n(fb_reset_n),
+    .wr_color_idx(wr_color_idx),
+    .wr_color_code(wr_color_code),
+    .wr_en(color_tab_wr_en),
+    .rd_color_idx(rd_color_idx),
+    .rd_color_code(rd_color_code)
+);
+
+logic fb_wr_en;
+logic [3:0] fb_wr_data;
+logic [17:0] fb_wr_addr;
+vector_engine vector_engine_inst (
+	.clk(display_clk),
+	.reset_n(fb_reset_n),
+    .enable(vector_engine_en),
+	.wr_addr(fb_wr_addr),
+    .wr_data(fb_wr_data),
+    .wr_en(fb_wr_en),
+    .color_tab_wr_en(color_tab_wr_en),
+    .wr_color_idx(wr_color_idx),
+    .wr_color_code(wr_color_code),
+    .done(vector_engine_done)
+);
+
 logic [17:0] disp_rd_addr;
 frame_buffer #(.SIM(SIM)) frame_buffer_inst (
 	.clk(display_clk),
 	.rst_n(fb_reset_n),
-	.rd_addr(disp_rd_addr),
 	.wr_addr(fb_wr_addr),
 	.wr_data(fb_wr_data),
-	.rd_data(disp_rd_data),
+    .rd_addr(disp_rd_addr),
+	.rd_data(rd_color_idx),
 	.wr_en(fb_wr_en),
 	.ready(fb_rdy)
 );
@@ -388,7 +406,7 @@ display display_inst (
     .cr(display_cr),
     .cb(display_cb),
     .rd_addr(disp_rd_addr),
-    .color(disp_rd_data),
+    .color(rd_color_code),
     .ready(fb_rdy)
 );
 

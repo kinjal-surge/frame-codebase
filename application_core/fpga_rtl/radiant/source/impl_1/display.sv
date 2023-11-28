@@ -19,7 +19,7 @@ module display (
     output logic [2:0] cr,
     output logic [2:0] cb,
 	output logic [17:0] rd_addr,
-	input [3:0] color,
+	input [9:0] color,
 	input ready
 );
 
@@ -71,44 +71,9 @@ always @(posedge clk) begin
 		else vsync <= 1;
 
 		if ((hsync_counter >= 122) && (hsync_counter < 762) && (vsync_counter >= 38) && (vsync_counter < 438)) begin
-			case(color)
-			'd0:begin
-				// black
-				y <= 'b0001;
-				cr <= 'b100;
-				cb <= 'b100;
-			end
-			'd1:begin
-				// blue
-				y <= 'b0100;
-				cr <= 'b010;
-				cb <= 'b111;
-			end
-			'd2:begin	
-				// red
-				y <= 'b0010;
-				cr <= 'b110;
-				cb <= 'b000;
-			end
-			'd3:begin
-				// green
-				y <= 'b0;
-				cr <= 'b0;
-				cb <= 'b0;
-			end
-			'd4:begin
-				// white
-				y <= 'b1001;
-				cr <= 'b100;
-				cb <= 'b100;
-			end
-			default:begin
-				// black
-				y <= 'b0001;
-				cr <= 'b100;
-				cb <= 'b100;
-			end
-			endcase
+			y <= color[9:6];
+			cr <= color[5:3];
+			cb <= color[2:0];
 		end
 	end
 end
