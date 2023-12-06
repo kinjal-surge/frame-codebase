@@ -2,23 +2,17 @@ module vector_engine (
 	input logic clk,
 	input logic reset_n,
 	input logic enable,
+	input logic [7:0] stack_rd_data,
+	output logic stack_rd_en,
 	output logic [17:0] wr_addr,
     output logic [3:0] wr_data,
     output logic wr_en,
     output logic color_tab_wr_en,
     output logic [3:0] wr_color_idx,
     output logic [9:0] wr_color_code,
-    output logic done
+    output logic done,
+	input logic fifo_empty
 );
-
-logic [7:0] stack [0:1023]/* synthesis syn_keep=1 nomerge=""*/;
-initial begin
-stack[0] = 8'd16; stack[1] = 8'd1; stack[2] = 8'd0; stack[3] = 8'd80; stack[4] = 8'd16; stack[5] = 8'd2; stack[6] = 8'd0; stack[7] = 8'd120;
-stack[8] = 8'd17; stack[9] = 8'd0; stack[10] = 8'd200; stack[11] = 8'd1; stack[12] = 8'd24; stack[13] = 8'd24; stack[14] = 8'd0; stack[15] = 8'd19;
-stack[16] = 8'd1; stack[17] = 8'd24; stack[18] = 8'd0; stack[19] = 8'd200; stack[20] = 8'd17; stack[21] = 8'd0; stack[22] = 8'd200; stack[23] = 8'd0;
-stack[24] = 8'd120; stack[25] = 8'd24; stack[26] = 8'd1; stack[27] = 8'd19; stack[28] = 8'd1; stack[29] = 8'd24; stack[30] = 8'd0; stack[31] = 8'd200;
-stack[32] = 8'd25;
-end
 
 logic [3:0] color_code;
 logic [9:0] x_pos;
@@ -96,127 +90,202 @@ localparam SET_COLOR_PAL = 8'h10,
 // state
 localparam 
     INIT = 6'd0,
-    DECODE = 6'd1,
-    WAIT = 6'd2,
-    LOOP = 6'd3,
-    SET_COLOUR = 6'd4,
-    DONE = 6'd5;
+	COMMAND_INSTRUCTION = 6'd1,
+	COPY_INSTRUCTIONS = 6'd2,
+    DECODE = 6'd3,
+    WAIT = 6'd4,
+    LOOP = 6'd5,
+    SET_COLOUR = 6'd6,
+    DONE = 6'd7;
 
 logic [5:0] instruction_state;
 logic [7:0] instruction_counter;
 logic [7:0] instruction;
 logic [9:0] currentX;
 logic [8:0] currentY;
-logic [9:0] offset;
-logic [7:0] next_offset;
+logic [7:0] num_bytes_to_copy;
+logic [7:0] stack_wr_idx/* synthesis syn_keep=1 nomerge=""*/;
 
+logic [7:0] stack [0:15]/* synthesis syn_keep=1 nomerge=""*/; 
+// fix stack copy logic
 always @(posedge clk) begin
-	if(!reset_n | !enable) begin
+	if(!reset_n) begin
 		line_en <= 0;
         curve_en <= 0;
+		instruction <= 0;
 		instruction_state <= INIT;
         color_code <= 0;
+		stack_rd_en <= 0;
+		currentX <= 0;
+		currentY <= 0;
 	end
 	
-	else if (reset_n & enable) begin
-		case(instruction_state)
-            INIT: begin // init and clear
-                line_en <= 0;
-                curve_en <= 0;
-                instruction_counter <= 0;
-                instruction_state <= DECODE;
-                offset <= 0;
-                instruction <= stack[0];
-                xy_to_addr_en <= 1;
-                done <= 0;
-            end
-            DECODE : begin // decode and initate
-                case (instruction)
-                    SET_COLOR_PAL : begin
-                        wr_color_idx <= stack[offset+1];
-                        wr_color_code <= {stack[offset+2][1:0], stack[offset+3]};
-                        color_tab_wr_en <= 1;
-                        next_offset <= 'd4;
-                        instruction_state <= SET_COLOUR;
-                    end
-                    MOVE : begin // move pen
-                        currentX <= {stack[offset+1], stack[offset+2]};
-                        currentY <= {stack[offset+3], stack[offset+4]};
-                        next_offset <= 'd5;
-                        instruction_state <= LOOP;
-                    end
-                    LINE : begin // draw line
-                        line_x0 <= currentX;
-                        line_y0 <= currentY;
-                        line_x1 <= {stack[offset+1], stack[offset+2]};
-                        line_y1 <= {stack[offset+3], stack[offset+4]};
-                        next_offset <= 'd5;
-                        line_en <= 1;
-                        if (line_en) instruction_state <= WAIT;
-                    end
-                    CUB_CURVE : begin // draw cubic curve
-                        curve_x0 <= currentX;
-                        curve_y0 <= currentY;
-                        curve_x1 <= {stack[offset+1], stack[offset+2]};
-                        curve_y1 <= {stack[offset+3], stack[offset+4]};
-                        curve_x2 <= {stack[offset+5], stack[offset+6]};
-                        curve_y2 <= {stack[offset+7], stack[offset+8]};
-                        curve_x3 <= {stack[offset+9], stack[offset+10]};
-                        curve_y3 <= {stack[offset+11], stack[offset+12]};
-                        next_offset <= 'd13;
-                        curve_en <= 1;
-                        if (curve_en) instruction_state <= WAIT;
-                    end
-                    SET_COLOR_IDX : begin // set color pallete index
-                        color_code <= stack[offset+1];
-                        next_offset <= 'd2;
-                        instruction_state <= LOOP;
-                    end
-                    SHOW : begin
-                        instruction_state <= DONE;
-                    end
-                endcase
-            end
-            WAIT : begin // wait for drawing to complete
-                case (instruction)
-                    LINE: begin
-                        x_pos <= line_x_pos;
-                        y_pos <= line_y_pos;
-                        if (line_rdy) begin
-                            line_en <= 0;
-                            currentX <= line_x1;
-                            currentY <= line_y1;
-                            instruction_state <= LOOP;
-                        end
-                    end
-                    CUB_CURVE: begin
-                        x_pos <= curve_x_pos;
-                        y_pos <= curve_y_pos;
-                        if (curve_rdy) begin
-                            curve_en <= 0;
-                            currentX <= curve_x3;
-                            currentY <= curve_y3;
-                            instruction_state <= LOOP;
-                        end
-                    end
-                endcase
-            end
-            LOOP : begin // increment counters, loop/continue
-                instruction_counter <= instruction_counter + 1;
-                offset <= offset + next_offset;
-                instruction <= stack[offset + next_offset];
-                instruction_state <= DECODE;
-            end
-            SET_COLOUR : begin // finish setting colour offset
-                color_tab_wr_en <= 0;
-                instruction_state <= LOOP;
-            end
-            DONE : begin
-                xy_to_addr_en <= 0;
-                done <= 1;
-            end
-        endcase
-    end
+	else begin
+		//if (stack_wr_en) stack[stack_addr] <= stack_data;
+		if (enable) begin
+			case(instruction_state)
+				INIT : begin // init and clear
+					line_en <= 0;
+					curve_en <= 0;
+					instruction_counter <= 0;
+					num_bytes_to_copy <= 0;
+					xy_to_addr_en <= 0;
+					if (!fifo_empty) begin 
+						instruction_state <= COMMAND_INSTRUCTION;
+						stack_rd_en <= 1;
+						done <= 0;
+					end
+					else begin
+						stack_rd_en <= 0;
+						done <= 1;
+					end
+				end
+				COMMAND_INSTRUCTION : begin
+					stack[0] <= stack_rd_data;
+					instruction <= stack_rd_data;
+					stack_wr_idx <= 'd1;
+					case (stack_rd_data)
+						SET_COLOR_PAL : begin
+							num_bytes_to_copy <= 'd3;
+							instruction_state <= COPY_INSTRUCTIONS;
+						end
+						MOVE : begin
+							num_bytes_to_copy <= 'd4;
+							instruction_state <= COPY_INSTRUCTIONS;
+						end
+						LINE : begin
+							num_bytes_to_copy <= 'd4;
+							instruction_state <= COPY_INSTRUCTIONS;
+						end
+						CUB_CURVE : begin
+							num_bytes_to_copy <= 'd12;
+							instruction_state <= COPY_INSTRUCTIONS;
+						end
+						SET_COLOR_IDX : begin
+							num_bytes_to_copy <= 'd1;
+							instruction_state <= COPY_INSTRUCTIONS;
+						end
+						SHOW : begin
+							// no more to copy in this case
+							num_bytes_to_copy <= 'd0;
+							stack_rd_en <= 0;
+							instruction_state <= DECODE;
+						end
+					endcase
+				end	
+				COPY_INSTRUCTIONS : begin
+					// more to copy
+					if (!fifo_empty && stack_wr_idx != num_bytes_to_copy) begin
+						stack[stack_wr_idx] <= stack_rd_data;
+						stack_wr_idx <= stack_wr_idx + 1;
+					end
+					
+					// finished copying whole packet
+					if (!fifo_empty && stack_wr_idx == num_bytes_to_copy) begin
+						stack[stack_wr_idx] <= stack_rd_data;
+						instruction_state <= DECODE;
+						stack_rd_en <= 0;
+					end 
+					
+					// else wait for data to arrive
+				end
+				DECODE : begin // decode and initate
+					case (instruction)
+						SET_COLOR_PAL : begin
+							wr_color_idx <= stack[1];
+							wr_color_code <= {stack[2][1:0], stack[3]};
+							color_tab_wr_en <= 1;
+							instruction_state <= SET_COLOUR;
+						end
+						MOVE : begin // move pen
+							currentX <= {stack[1], stack[2]};
+							currentY <= {stack[3], stack[4]};
+							instruction_state <= LOOP;
+						end
+						LINE : begin // draw line
+							line_x0 <= currentX;
+							line_y0 <= currentY;
+							line_x1 <= {stack[1], stack[2]};
+							line_y1 <= {stack[3], stack[4]};
+							line_en <= 1;
+							xy_to_addr_en <= 1;
+							if (line_en) instruction_state <= WAIT;
+						end
+						CUB_CURVE : begin // draw cubic curve
+							curve_x0 <= currentX;
+							curve_y0 <= currentY;
+							curve_x1 <= {stack[1], stack[2]};
+							curve_y1 <= {stack[3], stack[4]};
+							curve_x2 <= {stack[5], stack[6]};
+							curve_y2 <= {stack[7], stack[8]};
+							curve_x3 <= {stack[9], stack[10]};
+							curve_y3 <= {stack[11], stack[12]};
+							curve_en <= 1;
+							xy_to_addr_en <= 1;
+							// wait one clock
+							if (curve_en) instruction_state <= WAIT;
+						end
+						SET_COLOR_IDX : begin // set color pallete index
+							color_code <= stack[1];
+							instruction_state <= LOOP;
+						end
+						SHOW : begin
+							instruction_state <= DONE;
+						end
+					endcase
+				end
+				WAIT : begin // wait for drawing to complete
+					case (instruction)
+						LINE: begin
+							x_pos <= line_x_pos;
+							y_pos <= line_y_pos;
+							if (line_rdy) begin
+								line_en <= 0;
+								xy_to_addr_en <= 0;
+								currentX <= line_x1;
+								currentY <= line_y1;
+								instruction_state <= LOOP;
+							end
+						end
+						CUB_CURVE: begin
+							x_pos <= curve_x_pos;
+							y_pos <= curve_y_pos;
+							if (curve_rdy) begin
+								curve_en <= 0;
+								xy_to_addr_en <= 0;
+								currentX <= curve_x3;
+								currentY <= curve_y3;
+								instruction_state <= LOOP;
+							end
+						end
+					endcase
+				end
+				LOOP : begin // increment counters, loop/continue
+					instruction_counter <= instruction_counter + 1;
+					instruction_state <= INIT;
+				end
+				SET_COLOUR : begin // finish setting colour offset
+					color_tab_wr_en <= 0;
+					instruction_state <= LOOP;
+				end
+				DONE : begin
+					line_en <= 0;
+					curve_en <= 0;
+					stack_rd_en <= 0;
+					xy_to_addr_en <= 0;
+					done <= 1;
+					instruction_state <= INIT;
+				end
+			endcase
+		end
+		else begin
+			// same as reset state
+			line_en <= 0;
+			curve_en <= 0;
+			instruction_state <= INIT;
+			color_code <= 0;
+		end
+	end
 end
 
 endmodule

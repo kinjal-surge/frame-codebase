@@ -1,0 +1,30 @@
+<RadiantSimulationProject version="2.0" stage="3" simType="ModelSim" name="post_synth" path="sim" language="1">
+    <Source include="none" langstandard="" type="VERILOG" worklib="" path="impl_1/frame_fpga_impl_1_syn.vo"/>
+    <Source include="none" langstandard="" type="VERILOG" worklib="" path="source/impl_1/color_table.sv"/>
+    <Source include="none" langstandard="" type="VERILOG" worklib="" path="source/impl_1/curve_cubic.sv"/>
+    <Source include="none" langstandard="" type="VERILOG" worklib="" path="source/impl_1/display.sv"/>
+    <Source include="none" langstandard="" type="VERILOG" worklib="" path="source/impl_1/fp_mult.sv"/>
+    <Source include="none" langstandard="" type="VERILOG" worklib="" path="source/impl_1/frame_buffer.sv"/>
+    <Source include="none" langstandard="" type="VERILOG" worklib="" path="source/impl_1/line.sv"/>
+    <Source include="none" langstandard="" type="VERILOG" worklib="" path="source/impl_1/lram_fb.sv"/>
+    <Source include="none" langstandard="" type="VERILOG" worklib="" path="source/impl_1/ram_inferred.sv"/>
+    <Source include="none" langstandard="" type="VERILOG" worklib="" path="source/impl_1/reset_sync.sv"/>
+    <Source include="none" langstandard="" type="VERILOG" worklib="" path="source/impl_1/simple_bayer.sv"/>
+    <Source include="none" langstandard="" type="VERILOG" worklib="" path="source/impl_1/spi.sv"/>
+    <Source include="none" langstandard="" type="VERILOG" worklib="" path="source/impl_1/vector_engine.sv"/>
+    <Source include="none" langstandard="" type="VERILOG" worklib="" path="source/impl_1/xy_to_addr.sv"/>
+    <Source include="none" langstandard="" type="VERILOG" worklib="" path="sim/top_sim/tb_top.sv"/>
+    <Source include="none" langstandard="" type="VERILOG" worklib="" path="stack_fifo/rtl/stack_fifo.v"/>
+    <Source include="none" langstandard="" type="VERILOG" worklib="" path="frame_buffer/rtl/frame_buffer.v"/>
+    <Source include="none" langstandard="" type="VERILOG" worklib="" path="dphy_rx_ip/rtl/dphy_rx_ip.v"/>
+    <Source include="none" langstandard="" type="VERILOG" worklib="" path="frame_buffer_ram/rtl/frame_buffer_ram.v"/>
+    <Source include="none" langstandard="" type="VERILOG" worklib="" path="osc_ip/rtl/osc_ip.v"/>
+    <Source include="none" langstandard="" type="VERILOG" worklib="" path="pll_ip/rtl/pll_ip.v"/>
+    <Source include="none" langstandard="" type="VERILOG" worklib="" path="ram_ip/rtl/ram_ip.v"/>
+    <Source include="none" langstandard="" type="VERILOG" worklib="" path="byte2pixel_ip/rtl/byte2pixel_ip.v"/>
+    <SimLib value="pmi_work ovi_lifcl"/>
+    <GlbInc value=""/>
+    <Macro value=""/>
+    <Udo value=""/>
+    <TopModule instance="/dut" name="tb_top" language="VERILOG"/>
+</RadiantSimulationProject>

@@ -44,7 +44,7 @@
 #include "spi.h"
 
 bool not_real_hardware = false;
-bool prevent_sleep = false;
+bool prevent_sleep = true;
 bool unpair = false;
 
 static const nrfx_rtc_t rtc = NRFX_RTC_INSTANCE(0);
@@ -399,13 +399,13 @@ static void hardware_setup()
         spi_write(FPGA, fpga_exit_programming_mode, 4, false);
         nrfx_systick_delay_ms(200);
 
-        uint8_t fpga_chip_id[1] = {0x0A};
-        spi_write(FPGA, fpga_chip_id, 1, true);
-        spi_read(FPGA, fpga_chip_id, 1, false);
+        uint8_t fpga_chip_id = 0x00;
+        spi_write(FPGA, &fpga_chip_id, 1, true);
+        spi_read(FPGA, &fpga_chip_id, 1, false);
 
         if (not_real_hardware == false)
         {
-            if (fpga_chip_id[0] != 0xF1)
+            if (fpga_chip_id != 0xAA)
             {
                 error_with_message("FPGA not found");
             }

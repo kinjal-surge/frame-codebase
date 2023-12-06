@@ -1,0 +1,16 @@
+color_table,,/home/rohit/Downloads/frame-codebase/application_core/fpga_rtl/radiant/source/impl_1/color_table.sv
+display,,/home/rohit/Downloads/frame-codebase/application_core/fpga_rtl/radiant/source/impl_1/display.sv
+frame_buffer,,/home/rohit/Downloads/frame-codebase/application_core/fpga_rtl/radiant/frame_buffer/rtl/frame_buffer.v
+lram_fb,,/home/rohit/Downloads/frame-codebase/application_core/fpga_rtl/radiant/source/impl_1/lram_fb.sv
+ram_inferred,,/home/rohit/Downloads/frame-codebase/application_core/fpga_rtl/radiant/source/impl_1/ram_inferred.sv
+ram_inferred_65536B,,/home/rohit/Downloads/frame-codebase/application_core/fpga_rtl/radiant/source/impl_1/ram_inferred.sv
+simple_bayer,,/home/rohit/Downloads/frame-codebase/application_core/fpga_rtl/radiant/source/impl_1/simple_bayer.sv
+spi,,/home/rohit/Downloads/frame-codebase/application_core/fpga_rtl/radiant/source/impl_1/spi.sv
+vector_engine,,/home/rohit/Downloads/frame-codebase/application_core/fpga_rtl/radiant/source/impl_1/vector_engine.sv
+tb_top,/dut,/home/rohit/Downloads/frame-codebase/application_core/fpga_rtl/radiant/sim/top_sim/tb_top.sv
+stack_fifo,,/home/rohit/Downloads/frame-codebase/application_core/fpga_rtl/radiant/stack_fifo/rtl/stack_fifo.v
+dphy_rx_ip,,/home/rohit/Downloads/frame-codebase/application_core/fpga_rtl/radiant/dphy_rx_ip/rtl/dphy_rx_ip.v
+frame_buffer_ram,,/home/rohit/Downloads/frame-codebase/application_core/fpga_rtl/radiant/frame_buffer_ram/rtl/frame_buffer_ram.v
+osc_ip,,/home/rohit/Downloads/frame-codebase/application_core/fpga_rtl/radiant/osc_ip/rtl/osc_ip.v
+ram_ip,,/home/rohit/Downloads/frame-codebase/application_core/fpga_rtl/radiant/ram_ip/rtl/ram_ip.v
+byte2pixel_ip,,/home/rohit/Downloads/frame-codebase/application_core/fpga_rtl/radiant/byte2pixel_ip/rtl/byte2pixel_ip.v

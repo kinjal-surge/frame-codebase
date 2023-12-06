@@ -70,43 +70,65 @@ reset_sync reset_sync_byte(
 	.sync_reset_n(reset_n_byte)
 );
 
-logic vector_engine_en, vector_engine_done;
+logic vector_engine_en, vector_engine_en_d, vector_engine_done /* synthesis syn_keep=1 nomerge=""*/;
+logic [7:0] stack [0:1023]/* synthesis syn_keep=1 nomerge=""*/; 
+initial begin
+stack[0] = 8'd16; stack[1] = 8'd0; stack[2] = 8'd0; stack[3] = 8'd144; stack[4] = 8'd16; stack[5] = 8'd1; stack[6] = 8'd0; stack[7] = 8'd192;
+stack[8] = 8'd24; stack[9] = 8'd1; stack[10] = 8'd21; stack[11] = 8'd0; stack[12] = 8'd0; stack[13] = 8'd1; stack[14] = 8'd10; stack[15] = 8'd0;
+stack[16] = 8'd107; stack[17] = 8'd1; stack[18] = 8'd77; stack[19] = 8'd1; stack[20] = 8'd64; stack[21] = 8'd0; stack[22] = 8'd200; stack[23] = 8'd24;
+stack[24] = 8'd1; stack[25] = 8'd21; stack[26] = 8'd2; stack[27] = 8'd21; stack[28] = 8'd0; stack[29] = 8'd67; stack[30] = 8'd2; stack[31] = 8'd128;
+stack[32] = 8'd0; stack[33] = 8'd134; stack[34] = 8'd2; stack[35] = 8'd128; stack[36] = 8'd1; stack[37] = 8'd144; stack[38] = 8'd25;
+end
 
 // reset delay 
-logic [20:0] pixel_counter/* synthesis syn_keep=1 nomerge=""*/;
+logic [20:0] stack_counter/* synthesis syn_keep=1 nomerge=""*/;
 logic [31:0] ram_delay_counter = 0/* synthesis syn_keep=1 nomerge=""*/;
-logic fb_rdy;
+logic fb_rdy /* synthesis syn_keep=1 nomerge=""*/;
 logic [7:0] init_state/* synthesis syn_keep=1 nomerge=""*/;
+logic [7:0] stack_wr_data /* synthesis syn_keep=1 nomerge=""*/;
+logic stack_wr_en /* synthesis syn_keep=1 nomerge=""*/;
 always @(posedge display_clk) begin
 	if(pll_lock) begin
 		if (ram_delay_counter[5] == 0) begin
 			ram_delay_counter <= ram_delay_counter+1;
 			fb_reset_n <= 0;
-            pixel_counter <= 0;
-            init_state <= 0;
 		end
-		else begin
-            case (init_state)
-                'd0: begin
-                    fb_reset_n <= 1;
-                    if (fb_rdy) begin
-                        init_state <= init_state+1;
-                        vector_engine_en <= 1;
-                    end
-                end
-                'd1: begin
-                    if (vector_engine_done) begin
-                        init_state <= init_state+1;
-                        vector_engine_en <= 0;
-                    end
-                end
-                'd2: begin
-                    if (counter[5] == 0) counter <= counter + 1;
-                end
-            endcase
-		end
+		else fb_reset_n <= 1;
 	end
 	else fb_reset_n <= 0;
+
+    vector_engine_en_d <= vector_engine_en;
+end
+
+always @(posedge pixelx4_clk) begin
+	if (pll_lock & ram_delay_counter[5]) begin
+		case (init_state)
+			'd0: begin
+				if (fb_rdy) begin
+					init_state <= init_state+1;
+				end
+			end
+			'd1: begin
+				if (stack_counter < 'd39) begin
+					stack_wr_en <= 1;
+					stack_wr_data <= stack[stack_counter];
+					stack_counter <= stack_counter +1;
+				end else begin
+					stack_wr_en <= 0;
+					vector_engine_en <= 1;
+					init_state <= init_state+1;
+				end
+			end
+			'd2: begin
+				if (counter[5] == 0) counter <= counter + 1;
+			end
+		endcase
+	end
+	else begin
+		stack_counter <= 0;
+		init_state <= 0;
+		stack_wr_en <= 0;
+	end
 end
 
 logic [9:0] pd /* synthesis syn_keep=1 nomerge=""*/;
@@ -314,7 +336,7 @@ generate
         ram_inferred #(
             .ADDR(16),
             .DATA(30)
-        ) ram_inst (
+        ) cam_fb (
             .clk(pixelx4_clk),
             .rst_n(reset_n_pixel),
             .wr_addr(cam_wr_addr),
@@ -326,13 +348,13 @@ generate
         );
     
     else
-        ram_ip ram_inst (
+        ram_ip cam_fb (
                 .clk_i(pixelx4_clk),
                 .dps_i(1'b0),
                 .rst_i(~reset_n_pixel),
                 .wr_clk_en_i(reset_n_pixel),
                 .rd_clk_en_i(reset_n_pixel),
-                .wr_en_i(cam_wr_en),
+                .wr_en_i(cam_wr_en & !cam_rd_en),
                 .wr_data_i(rgb8),
                 .wr_addr_i(cam_wr_addr),
                 .rd_addr_i(cam_rd_addr),
@@ -343,6 +365,7 @@ generate
 endgenerate
 
 //TODO: fix spi read cam image 8b instead of 30
+logic [15:0] debug_out;
 spi spi_inst (
 	.clk(pixelx4_clk),
 	.reset(~reset_n_pixel),
@@ -368,20 +391,40 @@ color_table color_table_inst (
     .rd_color_code(rd_color_code)
 );
 
+logic stack_rd_en, stack_fifo_empty;
+logic [7:0] stack_rd_data;
+stack_fifo stack_fifo_inst(
+		.wr_clk_i(pixelx4_clk),
+        .rd_clk_i(display_clk),
+        .rst_i(~fb_reset_n),
+        .rp_rst_i(~fb_reset_n),
+        .wr_en_i(stack_wr_en),
+        .rd_en_i(stack_rd_en),
+        .wr_data_i(stack_wr_data),
+        .full_o( ),
+        .empty_o(),
+        .almost_full_o( ),
+        .almost_empty_o(stack_fifo_empty),
+        .rd_data_o(stack_rd_data)
+);
+
 logic fb_wr_en;
 logic [3:0] fb_wr_data;
 logic [17:0] fb_wr_addr;
 vector_engine vector_engine_inst (
 	.clk(display_clk),
 	.reset_n(fb_reset_n),
-    .enable(vector_engine_en),
+    .enable(vector_engine_en_d),
 	.wr_addr(fb_wr_addr),
     .wr_data(fb_wr_data),
     .wr_en(fb_wr_en),
     .color_tab_wr_en(color_tab_wr_en),
     .wr_color_idx(wr_color_idx),
     .wr_color_code(wr_color_code),
-    .done(vector_engine_done)
+    .done(vector_engine_done),
+	.stack_rd_en(stack_rd_en),
+	.stack_rd_data(stack_rd_data),
+	.fifo_empty(stack_fifo_empty)
 );
 
 logic [17:0] disp_rd_addr;
@@ -407,6 +450,7 @@ display display_inst (
     .cb(display_cb),
     .rd_addr(disp_rd_addr),
     .color(rd_color_code),
+	//.color(debug_out),
     .ready(fb_rdy)
 );
 

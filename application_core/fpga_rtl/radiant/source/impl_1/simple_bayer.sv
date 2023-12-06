@@ -22,8 +22,8 @@ module simple_bayer #(
 
 // TODO: do we need 2 extra pixels to prevent weird
 // overflow issues with array indexing ? 
-logic [9:0] line0 [0:HSIZE];
-logic [9:0] line1 [0:HSIZE];
+logic [9:0] line0 [HSIZE:0];
+logic [9:0] line1 [HSIZE:0];
 
 logic [15:0] rd_pix_counter;
 logic [15:0] wr_pix_counter;
@@ -35,7 +35,7 @@ logic [9:0] b;
 
 assign rgb30 = wr_en ? {r, g, b} : 'b0;
 assign rgb10 = wr_en ? {r[9:7], g[9:6], b[9:7]} : 'b0;
-assign rgb8 = wr_en ? {r[9:8], g[9:7], b[9:8]} : 'b0;
+assign rgb8 = wr_en ? {r[9:7], g[9:7], b[9:8]} : 'b0; // rgb332
 
 logic lv_d, pending;
 logic [1:0] pixel_clk_;

@@ -27,14 +27,16 @@
 	
 	input logic [7:0] debug8,	
 	input logic [31:0] debug32,
-	output logic [17:0] rd_addr,
-	input logic [29:0] rd_data,
-	output logic rd_en
+	output logic [16:0] rd_addr,
+	input logic [7:0] rd_data,
+	output logic rd_en,
+	output logic [15:0] debug_out
 );
 
 localparam CHIPID_REG = 8'h00;
 localparam DBG8_REG = 8'hB8;
 localparam DBG32_REG = 8'hB9;
+localparam DBG_RAM8 = 8'hBC;
 localparam DBG_RAM16 = 8'hBA;
 localparam DBG_RAM32 = 8'hBB;
 localparam CHIPID = 8'hAA;
@@ -86,6 +88,10 @@ always @(posedge clk) begin
 							cipo_reg32 <= debug32;
 							cipo <= debug32[31];
 						end
+						DBG_RAM8: begin
+							rd_en <= 1;
+							cipo <= 0;
+						end
 						DBG_RAM32: begin
 							rd_en <= 1;
 							cipo <= 0;
@@ -105,7 +111,7 @@ always @(posedge clk) begin
             // Response
 			
 			// 1 byte resp opcodes
-			if ((opcode == CHIPID_REG || opcode == DBG8_REG) & byte_counter != 0) begin
+			if ((opcode == CHIPID_REG || opcode == DBG8_REG || DBG_RAM8) & byte_counter != 0) begin
 				case (bit_counter)
 					'd0: cipo <= cipo_reg[6];
 					'd1: cipo <= cipo_reg[5];
@@ -114,6 +120,7 @@ always @(posedge clk) begin
 					'd4: cipo <= cipo_reg[2];
 					'd5: cipo <= cipo_reg[1];
 					'd6: cipo <= cipo_reg[0];
+					'd7: rd_addr <= rd_addr +1;
 					default: cipo <= 1;
 				endcase
 			end
@@ -224,7 +231,7 @@ always @(posedge clk) begin
         end
 
         // Rising edge of SCK 
-        else if ((sck_edge_monitor == 'b01) && (byte_counter == 0)) begin
+        else if ((sck_edge_monitor == 'b01) && (byte_counter == 'd0)) begin
             // Shift in data from nRF MSB first
 	        case (bit_counter)
 				'd0: copi_reg[7] <= copi;
@@ -237,6 +244,36 @@ always @(posedge clk) begin
 				'd7: copi_reg[0] <= copi;
 			endcase
         end
+		
+		else if ((sck_edge_monitor == 'b01) && (byte_counter == 'd1)) begin
+			case (bit_counter)
+				'd0: debug_out[15] <= copi;
+				'd1: debug_out[14] <= copi;
+				'd2: debug_out[13] <= copi;
+				'd3: debug_out[12] <= copi;
+				'd4: debug_out[11] <= copi;
+				'd5: debug_out[10] <= copi;
+				'd6: debug_out[9] <= copi;
+				'd7: debug_out[8] <= copi;
+			endcase
+		end
+		else if ((sck_edge_monitor == 'b01) && (byte_counter == 'd2)) begin
+			case (bit_counter)
+				'd0: debug_out[7] <= copi;
+				'd1: debug_out[6] <= copi;
+				'd2: debug_out[5] <= copi;
+				'd3: debug_out[4] <= copi;
+				'd4: debug_out[3] <= copi;
+				'd5: debug_out[2] <= copi;
+				'd6: debug_out[1] <= copi;
+				'd7: debug_out[0] <= copi;
+			endcase
+		end
+		
+		if (opcode == DBG_RAM8 && bit_counter == 'd7) begin
+			cipo <= rd_data[7];
+			cipo_reg <= rd_data;
+		end
     end
     // Reset on falling CS
     if (cs_edge_monitor == 2'b10 || reset) begin

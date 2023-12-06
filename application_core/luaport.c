@@ -125,18 +125,19 @@ void run_lua(void)
         // int status = luaL_dostring(L, "function fib(x) if x<=1 then return x end return fib(x-1)+fib(x-2) end print(fib(20)) print(fib(20)) print(fib(20)) print(fib(20)) print(fib(20))");
 
         i2c_response_t frame_count;
-        uint8_t txbuf;
+        uint8_t txbuf[3];
         uint8_t rxbuf[16000];
         uint32_t i;
         uint8_t j;
         uint32_t pix_block;
         uint16_t r, g, b;
+        uint16_t color_code = 0;
 
         switch (repl.buffer[0])
         {
         case (uint8_t)('p'):
-            txbuf = 0xbb;
-            spi_write(FPGA, &txbuf, 1, true);
+            txbuf[0] = 0xbb;
+            spi_write(FPGA, &txbuf[0], 1, true);
             spi_read(FPGA, &rxbuf[0], 640*4, false);
             i = 0;
             LOG("Frame data R G B:");
@@ -151,54 +152,52 @@ void run_lua(void)
             }
             break;
         case (uint8_t)('t'):
-            txbuf = 0xbb;
+            txbuf[0] = 0xbc;
             LOG("Frame data R G B:");
-            spi_write(FPGA, &txbuf, 1, true);
+            spi_write(FPGA, &txbuf[0], 1, true);
 
-            for (j = 0; j<10; j++) {
-                if (j==9)
-                    spi_read(FPGA, &rxbuf[0], 16000, false);
-                else 
-                    spi_read(FPGA, &rxbuf[0], 16000, true);
-                i = 0;
-                while (i<16000) {
-                    pix_block = (uint32_t) ((rxbuf[i] << 24) + (rxbuf[i+1] << 16) + (rxbuf[i+2] << 8) + rxbuf[i+3]);
-                    r = (uint16_t)((pix_block & 0x3FF00000) >> 20);
-                    g = (uint16_t)((pix_block & 0x000ffc00) >> 10);
-                    b = (uint16_t)((pix_block & 0x000003ff)      );
-                    LOG("%d\t%d\t%d", r, g, b);
-                    i = i+4;
-                    nrfx_systick_delay_us(200);
-                }
+            for (i = 0; i<40000; i++) {
+                if (i==39999)
+                    spi_read(FPGA, &rxbuf[0], 1, false);
+                else
+                    spi_read(FPGA, &rxbuf[0], 1, true);
+                
+                LOG("%d", rxbuf[0]);
+                nrfx_systick_delay_ms(1);
             }
-            break;
-
-        case (uint8_t)('o'):
-            
             break;
 
         case (uint8_t)('f'):
             frame_count = i2c_read(CAMERA, 0x4A00, 0xFF);
-            txbuf = 0xb8;
-            spi_write(FPGA, &txbuf, 1, true);
+            txbuf[0] = 0xb8;
+            spi_write(FPGA, &txbuf[0], 1, true);
             spi_read(FPGA, &rxbuf[0], 1, false);
             
             LOG("Frame count came => %u", frame_count.value);
             LOG("Frame count fpga => %d", rxbuf[0]);
             break;
 
-        case (uint8_t)('d'):
-            txbuf = 0xb9;
-            spi_write(FPGA, &txbuf, 1, true);
+        case (uint8_t)('D'):
+            txbuf[0] = 0xb9;
+            spi_write(FPGA, &txbuf[0], 1, true);
             spi_read(FPGA, &rxbuf[0], 4, false);
             pix_block = (uint32_t) ((rxbuf[0] << 24) + (rxbuf[1] << 16) + (rxbuf[2] << 8) + rxbuf[3]);
             LOG("debug32 => %d", pix_block);
             break;
 
         case (uint8_t)('x'):
-            
+            color_code = 1552;
+            txbuf[0] = 0xcc; txbuf[1] = (color_code & 0xff00) >> 8; txbuf[2] = color_code & 0xff;
+            spi_write(FPGA, &txbuf[0], 3, false);
             break;
         
+        case (uint8_t)('v'):
+            txbuf[0] = 0xb5;
+            spi_write(FPGA, &txbuf[0], 1, true);
+            spi_read(FPGA, &rxbuf[0], 4, false);
+            for(i=0; i<4; i++) {
+                LOG("%c", rxbuf[i]);
+            }
         default:
             break;
         }

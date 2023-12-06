@@ -1,6 +1,7 @@
 module ram_inferred #(
 	ADDR = 12,
-	DATA = 10
+	DATA = 10,
+	SIM = 0
 ) (
 	input logic clk,
 	input logic rst_n,
@@ -13,6 +14,17 @@ module ram_inferred #(
 );
 
 (* ram_style="huge" *) logic [DATA-1:0] mem [(2**ADDR)-1:0];
+
+generate
+if (SIM) begin
+	initial begin
+		integer pixel_counter = 0;
+		for (pixel_counter = 0; pixel_counter < (2**ADDR)-1; pixel_counter = pixel_counter+1) begin
+			mem[pixel_counter] = 0;
+		end	
+	end
+end
+endgenerate
 
 always @(posedge clk) begin
 	if (rst_n & wr_en)

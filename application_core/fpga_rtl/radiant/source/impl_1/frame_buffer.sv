@@ -60,7 +60,8 @@ generate
 	if(SIM) begin
 		ram_inferred # (
 				.ADDR(18),
-				.DATA(4)
+				.DATA(4),
+				.SIM(SIM)
 		) fb0 (
 				.clk(clk),
 				.rst_n(rst_n),
@@ -74,7 +75,8 @@ generate
 		
 		ram_inferred # (
 				.ADDR(18),
-				.DATA(4)
+				.DATA(4),
+				.SIM(SIM)
 		) fb1 (
 				.clk(clk),
 				.rst_n(rst_n),

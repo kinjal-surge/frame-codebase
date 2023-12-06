@@ -10,9 +10,13 @@ reg CLK_GSR  = 0;
 reg USER_GSR = 1;
 GSR GSR_INST (.GSR_N(USER_GSR), .CLK(CLK_GSR));
 
-logic hf_clk90 = 1;
+logic hf_clk90;
 logic pll_lock_dphy, pll_lock;
-logic sync_clk96, pixel_clk36, pixel_clk;
+logic sync_clk, pixel_clk36, pixel_clk;
+osc_ip osc_ip_inst (
+	.hf_out_en_i(1'b1),
+    .hf_clk_out_o(hf_clk90)
+);
 
 pll_ip pll_ip_inst (
 	.clki_i(hf_clk90),
@@ -43,7 +47,7 @@ assign reset_n = pll_lock & pll_lock_dphy & reset_counter[3];
 
 logic reset_n_sync;
 reset_sync reset_sync_sync(
-	.clk(sync_clk96),
+	.clk(sync_clk),
 	.async_reset_n(reset_n_main_pll),
 	.sync_reset_n(reset_n_sync)
 );
@@ -90,7 +94,7 @@ reset_sync reset_sync_pixel(
 
 logic reset_n_spi;
 reset_sync reset_sync_spi(
-	.clk(spi_clk40),
+	.clk(pixelx4_clk),
 	.async_reset_n(reset_n),
 	.sync_reset_n(reset_n_spi)
 );
@@ -197,7 +201,7 @@ wire packet_recv_ready;
 // without CIL
 
 csi_tx csi_tx_inst (
-        .ref_clk_i(sync_clk96 & reset_n_sync),
+        .ref_clk_i(sync_clk & reset_n_sync),
         .reset_n_i(reset_n_sync),
         .usrstdby_i(1'b0),
         .pd_dphy_i(1'b0),
@@ -255,7 +259,7 @@ logic spi_reset_n;
 logic [7:0] spi_cmd;
 logic [15:0] spi_byte_count;
 spi_controller spi_controller_inst (
-	.clk(pixel_clk),
+	.clk(pixelx4_clk),
 	.read_byte_count(spi_byte_count),
 	.command(spi_cmd),
 	.reset_n(spi_reset_n),
@@ -267,54 +271,37 @@ logic display_clock, display_hsync, display_vsync;
 logic [3:0] display_y;
 logic [2:0] display_cr;
 logic [2:0] display_cb;
-top #(
-	.SIM(1)
-) dut (
+top #(.SIM(1)) dut (
 	.*
 );
 	
 	logic start_spi;
 	// Clocks
-	localparam OSC_CLK_PERIOD = 5555; // 90M
-	initial begin
-		forever begin
-			#OSC_CLK_PERIOD hf_clk90 = ~hf_clk90;
-		end
-	end
+	// localparam OSC_CLK_PERIOD = 5555; // 90M
+	// initial begin
+	// 	forever begin
+	// 		#OSC_CLK_PERIOD hf_clk90 = ~hf_clk90;
+	// 	end
+	// end
 
 	initial begin
 		$display("Starting testbench");
 		$display("Image size: %d x %d", IMG_H_SIZE, IMG_V_SIZE);
 	end
 
-	always @(posedge spi_clk40) begin
+	always @(posedge pixelx4_clk) begin
 		if (!reset_n_spi | !start_spi) begin
 			spi_byte_count <= 0;
 			spi_cmd <= 0;
 			spi_reset_n <= 0;
 		end else begin
-			spi_cmd <= 'hBB;
-			spi_byte_count <= (IMG_H_SIZE/2)*4;
+			spi_cmd <= 'h00;
+			spi_byte_count <= 1;
 			if (spi_done) spi_reset_n <= 0;
 			else spi_reset_n <= 1;
 		end
-	end
 
-	logic fv_;
-	logic [7:0] fv_counter;
-	always @(posedge pixel_clk) begin
-		fv_ <= dut.fv;
-
-		if (!reset_n_pixel) begin
-			fv_counter <= 0;
-			start_spi <= 0;
-		end
-		else begin
-			if (fv_ & !dut.fv) begin
-				fv_counter <= fv_counter +1;
-				if (fv_counter == 'd1) start_spi <= 1;
-			end
-		end
+		start_spi <= dut.global_reset_n;
 	end
 	
 endmodule

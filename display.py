@@ -16,7 +16,7 @@ def pic():
         # 10 bit color
         # img1.rectangle([(i, 0), (i+1, 10)], fill = (int(pixels[i][0]*64), int(pixels[i][1]*32), int(pixels[i][2]*64)))
         for j in range(0,200):
-            img1.rectangle([(j, i), (j+1, i+1)], fill = (int(pixels[i*200+j][0]/4), int(pixels[i*200+j][1]/4), int(pixels[i*200+j][2]/4)))
+            img1.rectangle([(j, i), (j+1, i+1)], fill = (int(pixels[i*200+j]/16)*32, int((pixels[i*200+j]/4)%16)*32, int(pixels[i*200+j]%8)*128))
     img.save("new.png", "PNG")
 
 a = 0.299
@@ -30,6 +30,7 @@ def rgb2yuv(R, G, B):
     Cr = (R - Y) / e
     print(Y, Cb, Cr)
 
-with open('ram_init.txt', 'w') as f:
-    for i in range(65535):
-        f.write("00000001\n")
+pic()
+# with open('ram_init.txt', 'w') as f:
+#     for i in range(65535):
+#         f.write("00000001\n")
