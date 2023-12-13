@@ -14,7 +14,7 @@ localparam BYTE_CLK_FREQ = 45.000000;
 localparam AXI4M = "OFF";
 localparam APB = "OFF";
 localparam TXFR_SIG = 1;
-localparam WORD_CNT = 1600;
+localparam WORD_CNT = 1610;
 localparam THRESHOLD = 4;
 localparam PIX_FIFO_DEPTH = 512;
 `define LIFCL

@@ -87,6 +87,7 @@ logic fb_rdy /* synthesis syn_keep=1 nomerge=""*/;
 logic [7:0] init_state/* synthesis syn_keep=1 nomerge=""*/;
 logic [7:0] stack_wr_data /* synthesis syn_keep=1 nomerge=""*/;
 logic stack_wr_en /* synthesis syn_keep=1 nomerge=""*/;
+
 always @(posedge display_clk) begin
 	if(pll_lock) begin
 		if (ram_delay_counter[5] == 0) begin
@@ -99,6 +100,9 @@ always @(posedge display_clk) begin
 
     vector_engine_en_d <= vector_engine_en;
 end
+
+//logic [7:0] fake_pixel;
+//logic fake_wr_en, fake_fv;
 
 always @(posedge pixelx4_clk) begin
 	if (pll_lock & ram_delay_counter[5]) begin
@@ -120,8 +124,32 @@ always @(posedge pixelx4_clk) begin
 				end
 			end
 			'd2: begin
-				if (counter[5] == 0) counter <= counter + 1;
+				if (counter != 'b110000) begin
+                    counter <= counter + 1;
+                    //fake_fv <= 0;
+                    //fake_wr_en <= 0;
+                    //fake_pixel <= 0;
+                end
+				//else begin
+                    //init_state <= init_state+1;
+                    //fake_wr_en <= 1;
+                    //fake_fv <= 1;
+                //end
 			end
+			//'d3: begin
+				//if (fake_pixel != 'd255) begin
+					//fake_fv <= 1;
+					//fake_wr_en <= 1;
+					//fake_pixel <= fake_pixel + 1;
+				//end else begin
+					//fake_wr_en <= 0;
+					//if (!fake_wr_en)
+						//init_state <= init_state+1;
+				//end
+			//end
+			//'d4: begin
+				//fake_fv <= 0;
+			//end
 		endcase
 	end
 	else begin
@@ -283,31 +311,36 @@ byte2pixel_ip byte2pixel_ip_inst (
 logic [29:0] rgb30;
 logic [9:0] rgb10;
 logic [7:0] rgb8;
-logic cam_wr_en;
-logic [15:0] cam_wr_addr;
+logic [3:0] gray4;
+logic cam_fifo_wr_en;
 logic [31:0] dbg;
+logic debayer_fv;
 
 generate
     if(SIM)
-        simple_bayer 
-            #(
-                .HSIZE('d256),
-                .X_OFFSET(0),
-                .Y_OFFSET(0),
-                .X('d256),
-                .Y('d8)
-            ) bayer (
+        simple_bayer bayer (
                 .clk(pixelx4_clk),
                 .pixel_clk(pixel_clk),
                 .reset_n(reset_n_pixel),
-                .pixel_data(pd),
-                .lv(lv),
-                .fv(fv),
+				 .x_offset(10'd0),
+				 .y_offset(9'd0),
+				 .x_size(10'd640),
+				 .y_size(9'd2),
+				 .pixel_data(pd),
+				 .lv(lv),
+				 .fv(fv),
+                //.x_offset(10'd0),
+				//.y_offset(9'd0),
+				//.x_size(10'd400),
+				//.y_size(9'd400),
+                //.pixel_data(pixel_data),
+                //.lv(pixel_lv),
+                //.fv(pixel_fv),
                 .rgb10(rgb10),
-                .rgb30(rgb30),
-                .address(cam_wr_addr),
-                .wr_en(cam_wr_en),
-                .dbg(dbg)
+                .rgb8(rgb8),
+				.gray4(gray4),
+                .wr_en(cam_fifo_wr_en),
+				.fv_o(debayer_fv)
             );
     
     else
@@ -315,33 +348,56 @@ generate
             .clk(pixelx4_clk),
             .pixel_clk(pixel_clk),
             .reset_n(reset_n_pixel),
+            .x_offset(10'd440),
+            .y_offset(9'd200),
+            .x_size(10'd400),
+            .y_size(9'd400),
             .pixel_data(pd),
             .lv(lv),
             .fv(fv),
+			//.pixel_data(pixel_data),
+			//.lv(pixel_lv),
+			//.fv(pixel_fv),
             .rgb10(rgb10),
-            .rgb30(rgb30),
 			.rgb8(rgb8),
-            .address(cam_wr_addr),
-            .wr_en(cam_wr_en),
-            .dbg(dbg)
+			.gray4(gray4),
+            .wr_en(cam_fifo_wr_en),
+			.fv_o(debayer_fv)
         );
 endgenerate
 
-logic [7:0] cam_rd_data;
-logic [17:0] cam_rd_addr;
+logic [15:0] cam_wr_addr;
+logic cam_wr_en;
+logic [31:0] cam_wr_data;
+camera_fifo camera_fifo_inst (
+	.clock(pixelx4_clk),
+	.reset_n(reset_n_pixel),
+	.rgb10(rgb10),
+	.rgb8(rgb8),
+	//.rgb8(fake_pixel),
+	.gray4(gray4),
+	.pixel_width(4'd8),
+	.write_enable(cam_fifo_wr_en),
+	//.write_enable(fake_wr_en),
+	.frame_valid(debayer_fv),
+	//.frame_valid(fake_fv),
+	.write_enable_frame_buffer(cam_wr_en),
+	.pixel_data_to_ram(cam_wr_data),
+	.ram_address(cam_wr_addr)
+);
+
+logic [31:0] cam_rd_data;
+logic [15:0] cam_rd_addr;
 logic cam_rd_en;
 
 generate
     if(SIM)
-        ram_inferred #(
-            .ADDR(16),
-            .DATA(30)
-        ) cam_fb (
+        ram_inferred_cam cam_fb (
             .clk(pixelx4_clk),
             .rst_n(reset_n_pixel),
             .wr_addr(cam_wr_addr),
             .rd_addr(cam_rd_addr),
-            .wr_data(rgb30),
+            .wr_data(cam_wr_data),
             .rd_data(cam_rd_data),
             .wr_en(cam_wr_en & !cam_rd_en),
             .rd_en(cam_rd_en)
@@ -349,31 +405,99 @@ generate
     
     else
         ram_ip cam_fb (
-                .clk_i(pixelx4_clk),
-                .dps_i(1'b0),
-                .rst_i(~reset_n_pixel),
-                .wr_clk_en_i(reset_n_pixel),
-                .rd_clk_en_i(reset_n_pixel),
-                .wr_en_i(cam_wr_en & !cam_rd_en),
-                .wr_data_i(rgb8),
-                .wr_addr_i(cam_wr_addr),
-                .rd_addr_i(cam_rd_addr),
-                .rd_data_o(cam_rd_data),
-                .lramready_o( ),
-                .rd_datavalid_o( )
+            .clk_i(pixelx4_clk),
+            .dps_i(1'b0),
+            .rst_i(~reset_n_pixel),
+            .wr_clk_en_i(reset_n_pixel),
+            .rd_clk_en_i(reset_n_pixel),
+            .wr_en_i(cam_wr_en & !cam_rd_en),
+            .wr_data_i(cam_wr_data),
+            .wr_addr_i(cam_wr_addr),
+            .rd_addr_i(cam_rd_addr),
+            .rd_data_o(cam_rd_data),
+            .lramready_o( ),
+            .rd_datavalid_o( )
         );
 endgenerate
 
-//TODO: fix spi read cam image 8b instead of 30
 logic [15:0] debug_out;
-spi spi_inst (
-	.clk(pixelx4_clk),
-	.reset(~reset_n_pixel),
-    .rd_en(cam_rd_en),
+//spi spi_inst (
+	//.clk(pixelx4_clk),
+	//.reset(~reset_n_pixel),
+    //.rd_en(cam_rd_en),
+    //.rd_addr(cam_rd_addr),
+    //.rd_data(cam_rd_data),
+	//.debug32(dbg),
+	//.*
+//);
+
+logic [7:0] subperipheral_address;
+logic subperipheral_address_valid;
+logic [7:0] subperipheral_copi;
+logic subperipheral_copi_valid;
+logic [7:0] subperipheral_cipo;
+logic subperipheral_cipo_valid;
+
+logic subperipheral_1_enable;
+logic [7:0] subperipheral_1_cipo;
+logic subperipheral_1_cipo_valid;
+
+logic subperipheral_2_enable;
+logic [7:0] subperipheral_2_cipo;
+logic subperipheral_2_cipo_valid;
+
+spi_peripheral spi_peripheral (
+    .clock(pixelx4_clk),
+	.reset_n(reset_n_pixel),
+
+    .spi_select_in(cs),
+    .spi_clock_in(sck),
+    .spi_data_in(copi),
+    .spi_data_out(cipo),
+
+    .subperipheral_address_out(subperipheral_address),
+    .subperipheral_address_out_valid(subperipheral_address_valid),
+    .subperipheral_data_out(subperipheral_copi),
+    .subperipheral_data_out_valid(subperipheral_copi_valid),
+    .subperipheral_data_in(subperipheral_cipo),
+    .subperipheral_data_in_valid(subperipheral_cipo_valid)
+);
+
+spi_subperipheral_selector spi_subperipheral_selector (
+    .address_in(subperipheral_address),
+    .address_in_valid(subperipheral_address_valid),
+    .peripheral_data_out(subperipheral_cipo),
+    .peripheral_data_out_valid(subperipheral_cipo_valid),
+
+    .subperipheral_1_enable_out(subperipheral_1_enable),
+    .subperipheral_1_data_in(subperipheral_1_cipo),
+    .subperipheral_1_data_in_valid(subperipheral_1_cipo_valid),
+
+    .subperipheral_2_enable_out(subperipheral_2_enable),
+    .subperipheral_2_data_in(subperipheral_2_cipo),
+    .subperipheral_2_data_in_valid(subperipheral_2_cipo_valid)
+);
+
+spi_register_chip_id spi_register_chip_id (
+    .clock(pixelx4_clk),
+	.reset_n(reset_n_pixel),
+    .enable(subperipheral_1_enable),
+
+    .data_out(subperipheral_1_cipo),
+    .data_out_valid(subperipheral_1_cipo_valid)
+);
+
+camera_peripheral camera_peripheral (
+    .clock(pixelx4_clk),
+    .reset_n(reset_n_pixel),
+    .enable(subperipheral_2_enable),
+
+    .data_in_valid(subperipheral_copi_valid),
+    .data_out(subperipheral_2_cipo),
+    .data_out_valid(subperipheral_2_cipo_valid),
     .rd_addr(cam_rd_addr),
     .rd_data(cam_rd_data),
-	.debug32(dbg),
-	.*
+	.rd_en(cam_rd_en)
 );
 
 logic [3:0] wr_color_idx;
@@ -394,18 +518,18 @@ color_table color_table_inst (
 logic stack_rd_en, stack_fifo_empty;
 logic [7:0] stack_rd_data;
 stack_fifo stack_fifo_inst(
-		.wr_clk_i(pixelx4_clk),
-        .rd_clk_i(display_clk),
-        .rst_i(~fb_reset_n),
-        .rp_rst_i(~fb_reset_n),
-        .wr_en_i(stack_wr_en),
-        .rd_en_i(stack_rd_en),
-        .wr_data_i(stack_wr_data),
-        .full_o( ),
-        .empty_o(),
-        .almost_full_o( ),
-        .almost_empty_o(stack_fifo_empty),
-        .rd_data_o(stack_rd_data)
+    .wr_clk_i(pixelx4_clk),
+    .rd_clk_i(display_clk),
+    .rst_i(~fb_reset_n),
+    .rp_rst_i(~fb_reset_n),
+    .wr_en_i(stack_wr_en),
+    .rd_en_i(stack_rd_en),
+    .wr_data_i(stack_wr_data),
+    .full_o( ),
+    .empty_o(),
+    .almost_full_o( ),
+    .almost_empty_o(stack_fifo_empty),
+    .rd_data_o(stack_rd_data)
 );
 
 logic fb_wr_en;

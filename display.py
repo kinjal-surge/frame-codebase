@@ -5,7 +5,7 @@ def pic():
     pixels = np.loadtxt("log.txt", dtype=int)
 
     # img = Image.new("RGB", (641, 10))
-    img = Image.new("RGB", (201, 201))
+    img = Image.new("RGB", (151, 151))
 
     img1 = ImageDraw.Draw(img)
 
@@ -16,7 +16,7 @@ def pic():
         # 10 bit color
         # img1.rectangle([(i, 0), (i+1, 10)], fill = (int(pixels[i][0]*64), int(pixels[i][1]*32), int(pixels[i][2]*64)))
         for j in range(0,200):
-            img1.rectangle([(j, i), (j+1, i+1)], fill = (int(pixels[i*200+j]/16)*32, int((pixels[i*200+j]/4)%16)*32, int(pixels[i*200+j]%8)*128))
+            img1.rectangle([(j, i), (j+1, i+1)], fill = (int(pixels[i*200+j]) & 0xe0, int(int(pixels[i*200+j]) & 0x1e)*8, int(int(pixels[i*200+j]) & 0x03)*64))
     img.save("new.png", "PNG")
 
 a = 0.299

@@ -1,0 +1,11 @@
+<RadiantSimulationProject name="spi_peripheral" simType="ModelSim" path="sim" stage="0" language="1" version="2.0">
+    <Source worklib="" path="sim/spi_peripheral/tb_top.sv" include="none" type="VERILOG" langstandard=""/>
+    <Source worklib="" path="source/impl_1/chip_id.sv" include="none" type="VERILOG" langstandard=""/>
+    <Source worklib="" path="source/impl_1/spi_subperipheral_selector.sv" include="none" type="VERILOG" langstandard=""/>
+    <Source worklib="" path="source/impl_1/spi_peripheral.sv" include="none" type="VERILOG" langstandard=""/>
+    <SimLib value="pmi_work ovi_lifcl"/>
+    <GlbInc value=""/>
+    <Macro value=""/>
+    <Udo value=""/>
+    <TopModule name="spi_tb" language="VERILOG" instance=""/>
+</RadiantSimulationProject>

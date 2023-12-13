@@ -13,7 +13,7 @@ module ram_inferred #(
 	input logic rd_en
 );
 
-(* ram_style="huge" *) logic [DATA-1:0] mem [(2**ADDR)-1:0];
+logic [DATA-1:0] mem [(2**ADDR)-1:0];
 
 generate
 if (SIM) begin
@@ -38,25 +38,27 @@ end
 
 endmodule
 
-module ram_inferred_65536B (
+module ram_inferred_cam (
 	input logic clk,
 	input logic rst_n,
-	input logic [13:0] wr_addr,
-	input logic [13:0] rd_addr,
+	input logic [15:0] wr_addr,
+	input logic [15:0] rd_addr,
 	input logic [31:0] wr_data,
 	output logic [31:0] rd_data,
-	input logic wr_en
+	input logic wr_en,
+	input logic rd_en
 );
 
-(* ram_style="huge" *) reg [31:0] mem [0:16384];
+reg [31:0] mem [0:15999];
 
 always @(posedge clk) begin
-	if (rst_n & wr_en)
+	if (rst_n & wr_en) begin
 		mem[wr_addr] <= wr_data;
+	end
 end
 
 always @(posedge clk) begin
-	if (rst_n & !wr_en)
+	if (rst_n & rd_en)
 		rd_data <= mem[rd_addr];
 end
 

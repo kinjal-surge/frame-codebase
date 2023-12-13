@@ -152,12 +152,14 @@ void run_lua(void)
             }
             break;
         case (uint8_t)('t'):
-            txbuf[0] = 0xbc;
+            txbuf[0] = 0xbb;
             LOG("Frame data R G B:");
             spi_write(FPGA, &txbuf[0], 1, true);
 
             for (i = 0; i<40000; i++) {
+            // for (i = 0; i<256; i++) {
                 if (i==39999)
+                // if (i==255)
                     spi_read(FPGA, &rxbuf[0], 1, false);
                 else
                     spi_read(FPGA, &rxbuf[0], 1, true);

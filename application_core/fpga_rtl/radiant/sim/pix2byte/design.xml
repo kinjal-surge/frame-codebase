@@ -26,7 +26,7 @@
                     <ipxact:configurableElementValue referenceId="AXI4M">OFF</ipxact:configurableElementValue>
                     <ipxact:configurableElementValue referenceId="APB">OFF</ipxact:configurableElementValue>
                     <ipxact:configurableElementValue referenceId="TXFR_SIG">True</ipxact:configurableElementValue>
-                    <ipxact:configurableElementValue referenceId="WORD_CNT">1600</ipxact:configurableElementValue>
+                    <ipxact:configurableElementValue referenceId="WORD_CNT">1610</ipxact:configurableElementValue>
                     <ipxact:configurableElementValue referenceId="MAN_ADJ">False</ipxact:configurableElementValue>
                     <ipxact:configurableElementValue referenceId="THRESHOLD">4</ipxact:configurableElementValue>
                     <ipxact:configurableElementValue referenceId="PIX_FIFO_DEPTH">512</ipxact:configurableElementValue>

@@ -28,7 +28,7 @@
 	input logic [7:0] debug8,	
 	input logic [31:0] debug32,
 	output logic [16:0] rd_addr,
-	input logic [7:0] rd_data,
+	input logic [31:0] rd_data,
 	output logic rd_en,
 	output logic [15:0] debug_out
 );
@@ -91,10 +91,12 @@ always @(posedge clk) begin
 						DBG_RAM8: begin
 							rd_en <= 1;
 							cipo <= 0;
+							rd_addr <= 0;
 						end
 						DBG_RAM32: begin
 							rd_en <= 1;
 							cipo <= 0;
+							rd_addr <= 0;
 						end
 						DBG_RAM16: begin
 							rd_en <= 1;
@@ -163,60 +165,54 @@ always @(posedge clk) begin
 				case(byte_counter[1:0])
 				2'b01: begin // msb
 					case (bit_counter)
-						'd0: begin
-							if (opcode == DBG_RAM32) begin
-								cipo_reg32 <= {2'b0, rd_data};
-								rd_addr <= rd_addr +1;
-								cipo <= 0;
-							end else cipo <= cipo_reg32[30];
-						end
-						'd1: cipo <= cipo_reg32[29];
-						'd2: cipo <= cipo_reg32[28];
-						'd3: cipo <= cipo_reg32[27];
-						'd4: cipo <= cipo_reg32[26];
-						'd5: cipo <= cipo_reg32[25];
-						'd6: cipo <= cipo_reg32[24];
-						'd7: cipo <= cipo_reg32[23];
+						'd0: cipo <= cipo_reg32[31];
+						'd1: cipo <= cipo_reg32[30];
+						'd2: cipo <= cipo_reg32[29];
+						'd3: cipo <= cipo_reg32[28];
+						'd4: cipo <= cipo_reg32[27];
+						'd5: cipo <= cipo_reg32[26];
+						'd6: cipo <= cipo_reg32[25];
+						'd7: cipo <= cipo_reg32[24];
 						default: cipo <= 1;
 					endcase
 				end
 				
 				2'b10: begin
 					case (bit_counter)
-						'd0: cipo <= cipo_reg32[22];
-						'd1: cipo <= cipo_reg32[21];
-						'd2: cipo <= cipo_reg32[20];
-						'd3: cipo <= cipo_reg32[19];
-						'd4: cipo <= cipo_reg32[18];
-						'd5: cipo <= cipo_reg32[17];
-						'd6: cipo <= cipo_reg32[16];
-						'd7: cipo <= cipo_reg32[15];
+						'd0: cipo <= cipo_reg32[23];
+						'd1: cipo <= cipo_reg32[22];
+						'd2: cipo <= cipo_reg32[21];
+						'd3: cipo <= cipo_reg32[20];
+						'd4: cipo <= cipo_reg32[19];
+						'd5: cipo <= cipo_reg32[18];
+						'd6: cipo <= cipo_reg32[17];
+						'd7: cipo <= cipo_reg32[16];
 						default: cipo <= 1;
 					endcase
 				end
 				2'b11: begin
 					case (bit_counter)
-						'd0: cipo <= cipo_reg32[14];
-						'd1: cipo <= cipo_reg32[13];
-						'd2: cipo <= cipo_reg32[12];
-						'd3: cipo <= cipo_reg32[11];
-						'd4: cipo <= cipo_reg32[10];
-						'd5: cipo <= cipo_reg32[9];
-						'd6: cipo <= cipo_reg32[8];
-						'd7: cipo <= cipo_reg32[7];
+						'd0: cipo <= cipo_reg32[15];
+						'd1: cipo <= cipo_reg32[14];
+						'd2: cipo <= cipo_reg32[13];
+						'd3: cipo <= cipo_reg32[12];
+						'd4: cipo <= cipo_reg32[11];
+						'd5: cipo <= cipo_reg32[10];
+						'd6: cipo <= cipo_reg32[9];
+						'd7: cipo <= cipo_reg32[8];
 						default: cipo <= 1;
 					endcase
 				end
 				2'b00: begin
 					case (bit_counter)
-						'd0: cipo <= cipo_reg32[6];
-						'd1: cipo <= cipo_reg32[5];
-						'd2: cipo <= cipo_reg32[4];
-						'd3: cipo <= cipo_reg32[3];
-						'd4: cipo <= cipo_reg32[2];
-						'd5: cipo <= cipo_reg32[1];
-						'd6: cipo <= cipo_reg32[0];
-						'd7: cipo <= 0;
+						'd0: cipo <= cipo_reg32[7];
+						'd1: cipo <= cipo_reg32[6];
+						'd2: cipo <= cipo_reg32[5];
+						'd3: cipo <= cipo_reg32[4];
+						'd4: cipo <= cipo_reg32[3];
+						'd5: cipo <= cipo_reg32[2];
+						'd6: cipo <= cipo_reg32[1];
+						'd7: cipo <= cipo_reg32[0];
 						default: cipo <= 1;
 					endcase
 				end
@@ -227,6 +223,9 @@ always @(posedge clk) begin
             if (bit_counter == 'd7) begin 
                 bit_counter <= 0;
                 byte_counter <= byte_counter + 1;
+				if (byte_counter[1:0] == 'b00) begin
+					
+				end
             end else bit_counter <= bit_counter + 1;
         end
 

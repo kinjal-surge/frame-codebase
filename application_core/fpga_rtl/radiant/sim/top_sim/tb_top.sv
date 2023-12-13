@@ -2,8 +2,8 @@
 
 module tb_top();
 	
-localparam IMG_H_SIZE = 16'd256;
-localparam IMG_V_SIZE = 16'd8;
+localparam IMG_H_SIZE = 16'd640;
+localparam IMG_V_SIZE = 16'd2;
 localparam WC = IMG_H_SIZE*10/8; // RAW10 to byte
 
 reg CLK_GSR  = 0;
@@ -295,13 +295,13 @@ top #(.SIM(1)) dut (
 			spi_cmd <= 0;
 			spi_reset_n <= 0;
 		end else begin
-			spi_cmd <= 'h00;
-			spi_byte_count <= 1;
+			spi_cmd <= 'hbb;
+			spi_byte_count <= 'd32;
 			if (spi_done) spi_reset_n <= 0;
 			else spi_reset_n <= 1;
 		end
 
-		start_spi <= dut.global_reset_n;
+		start_spi <= dut.camera_fifo_inst.debug;
 	end
 	
 endmodule

@@ -2,6 +2,7 @@ module spi_controller (
     input logic clk, 
     input logic reset_n,
     output logic copi,
+    input logic cipo,
     output logic sck,
     output logic cs,
     input logic [7:0] command,
@@ -11,6 +12,7 @@ module spi_controller (
 
 logic [7:0] bit_counter = 0;
 logic [15:0] byte_counter = 0;
+logic [31:0] cipo_reg;
 
 logic [3:0] clk_counter;
 
@@ -46,6 +48,10 @@ always @(posedge clk) begin
             end
         end
         else clk_counter <= clk_counter +1;
+
+        if (sck && clk_counter == 0) begin
+            cipo_reg <= {cipo_reg[30:0], cipo};
+        end
     end
 end
 

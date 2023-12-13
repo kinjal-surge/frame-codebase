@@ -20,6 +20,8 @@ logic [7:0] reset_counter;
 
 localparam HFP = 2*HPIX;
 localparam HBP = 2.2*HPIX;
+// localparam HFP = 32'd2560;
+// localparam HBP = 32'd2816;
 
 always @(posedge clk) begin
     if(!reset_n) begin
@@ -55,19 +57,59 @@ always @(posedge clk) begin
 					y <= 0;
 			end
 
-			if ((x - (HSYNC+HBP)) < 'd32) pix_data <= 'h00;
-			else if (((x - (HSYNC+HBP)) >= 'd32) & ((x - (HSYNC+HBP)) < 'd64)) pix_data <= 'h20; 
-			else if (((x - (HSYNC+HBP)) >= 'd64) & ((x - (HSYNC+HBP)) < 'd96)) pix_data <= 'h40; 
-			else if (((x - (HSYNC+HBP)) >= 'd96) & ((x - (HSYNC+HBP)) < 'd128)) pix_data <= 'h60; 
-			else if (((x - (HSYNC+HBP)) >= 'd128) & ((x - (HSYNC+HBP)) < 'd160)) pix_data <= 'h80; 
-			else if (((x - (HSYNC+HBP)) >= 'd160) & ((x - (HSYNC+HBP)) < 'd192)) pix_data <= 'ha0; 
-			else if (((x - (HSYNC+HBP)) >= 'd192) & ((x - (HSYNC+HBP)) < 'd224)) pix_data <= 'hc0; 
-			else if (((x - (HSYNC+HBP)) >= 'd224) & ((x - (HSYNC+HBP)) < 'd256)) pix_data <= 'he0;
-			else if (((x - (HSYNC+HBP)) >= 'd256) & ((x - (HSYNC+HBP)) < 'd288)) pix_data <= 'h100;
-			else if (((x - (HSYNC+HBP)) >= 'd288) & ((x - (HSYNC+HBP)) < 'd312)) pix_data <= 'h12;
-			else if (((x - (HSYNC+HBP)) >= 'd312) & ((x - (HSYNC+HBP)) < 'd344)) pix_data <= 'h14;
-			else if (((x - (HSYNC+HBP)) >= 'd344) & ((x - (HSYNC+HBP)) < 'd376)) pix_data <= 'h16;
-			else pix_data <= 'h122;
+			if (x >= (HSYNC+HBP)) begin
+				if ((x - (HSYNC+HBP)) < 'd320) begin
+					if (y[0]) begin
+						if (x[0]) pix_data <= 'h3ff; // r
+						else pix_data <= 'h3ff; // g
+					end
+					else begin
+						if (x[0]) pix_data <= 'h3ff; // g
+						else pix_data <= 'h3ff; // b
+					end
+				end
+				else if (((x - (HSYNC+HBP)) >= 'd320) & ((x - (HSYNC+HBP)) < 'd640)) begin
+					if (y[0]) begin
+						if (x[0]) pix_data <= 'h3ff; // r
+						else pix_data <= 'h0; // g
+					end
+					else begin
+						if (x[0]) pix_data <= 'h0; // g
+						else pix_data <= 'h3ff; // b
+					end
+				end
+				else if (((x - (HSYNC+HBP)) >= 'd640) & ((x - (HSYNC+HBP)) < 'd960)) begin
+					if (y[0]) begin
+						if (x[0]) pix_data <= 'h0; // r
+						else pix_data <= 'h3ff; // g
+					end
+					else begin
+						if (x[0]) pix_data <= 'h3ff; // g
+						else pix_data <= 'h0; // b
+					end
+				end
+				else if (((x - (HSYNC+HBP)) >= 'd960) & ((x - (HSYNC+HBP)) < 'd1280)) begin
+					if (y[0]) begin
+						if (x[0]) pix_data <= 'h3ff; // r
+						else pix_data <= 'h3ff; // g
+					end
+					else begin
+						if (x[0]) pix_data <= 'h0; // g
+						else pix_data <= 'h0; // b
+					end
+				end
+			end
+
+			// else if (((x - (HSYNC+HBP)) >= 'd96) & ((x - (HSYNC+HBP)) < 'd128)) pix_data <= 'h60; 
+			// else if (((x - (HSYNC+HBP)) >= 'd128) & ((x - (HSYNC+HBP)) < 'd160)) pix_data <= 'h80; 
+			// else if (((x - (HSYNC+HBP)) >= 'd160) & ((x - (HSYNC+HBP)) < 'd192)) pix_data <= 'ha0; 
+			// else if (((x - (HSYNC+HBP)) >= 'd192) & ((x - (HSYNC+HBP)) < 'd224)) pix_data <= 'hc0; 
+			// else if (((x - (HSYNC+HBP)) >= 'd224) & ((x - (HSYNC+HBP)) < 'd256)) pix_data <= 'he0;
+			// else if (((x - (HSYNC+HBP)) >= 'd256) & ((x - (HSYNC+HBP)) < 'd288)) pix_data <= 'h100;
+			// else if (((x - (HSYNC+HBP)) >= 'd288) & ((x - (HSYNC+HBP)) < 'd312)) pix_data <= 'h12;
+			// else if (((x - (HSYNC+HBP)) >= 'd312) & ((x - (HSYNC+HBP)) < 'd344)) pix_data <= 'h14;
+			// else if (((x - (HSYNC+HBP)) >= 'd344) & ((x - (HSYNC+HBP)) < 'd376)) pix_data <= 'h16;
+			// else pix_data <= 'h122;
 		end
 	end
 end

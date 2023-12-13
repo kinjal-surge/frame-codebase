@@ -12,19 +12,19 @@
                     <ipxact:configurableElementValue referenceId="FAMILY">LIFCL</ipxact:configurableElementValue>
                     <ipxact:configurableElementValue referenceId="T_FAMILY">LIFCL</ipxact:configurableElementValue>
                     <ipxact:configurableElementValue referenceId="MEM_ID">ram_ip</ipxact:configurableElementValue>
-                    <ipxact:configurableElementValue referenceId="MEM_SIZE">8,40000</ipxact:configurableElementValue>
-                    <ipxact:configurableElementValue referenceId="WADDR_DEPTH">40000</ipxact:configurableElementValue>
-                    <ipxact:configurableElementValue referenceId="WDATA_WIDTH">8</ipxact:configurableElementValue>
-                    <ipxact:configurableElementValue referenceId="RADDR_DEPTH">40000</ipxact:configurableElementValue>
-                    <ipxact:configurableElementValue referenceId="RDATA_WIDTH">8</ipxact:configurableElementValue>
-                    <ipxact:configurableElementValue referenceId="WADDR_WIDTH">16</ipxact:configurableElementValue>
+                    <ipxact:configurableElementValue referenceId="MEM_SIZE">32,16000</ipxact:configurableElementValue>
+                    <ipxact:configurableElementValue referenceId="WADDR_DEPTH">16000</ipxact:configurableElementValue>
+                    <ipxact:configurableElementValue referenceId="WDATA_WIDTH">32</ipxact:configurableElementValue>
+                    <ipxact:configurableElementValue referenceId="RADDR_DEPTH">16000</ipxact:configurableElementValue>
+                    <ipxact:configurableElementValue referenceId="RDATA_WIDTH">32</ipxact:configurableElementValue>
+                    <ipxact:configurableElementValue referenceId="WADDR_WIDTH">14</ipxact:configurableElementValue>
                     <ipxact:configurableElementValue referenceId="REGMODE">True</ipxact:configurableElementValue>
                     <ipxact:configurableElementValue referenceId="EN_RDOUT_CLK">False</ipxact:configurableElementValue>
                     <ipxact:configurableElementValue referenceId="RESETMODE">sync</ipxact:configurableElementValue>
                     <ipxact:configurableElementValue referenceId="RESET_RELEASE">sync</ipxact:configurableElementValue>
                     <ipxact:configurableElementValue referenceId="BYTE_ENABLE">False</ipxact:configurableElementValue>
-                    <ipxact:configurableElementValue referenceId="BYTE_WIDTH">1</ipxact:configurableElementValue>
-                    <ipxact:configurableElementValue referenceId="RADDR_WIDTH">16</ipxact:configurableElementValue>
+                    <ipxact:configurableElementValue referenceId="BYTE_WIDTH">4</ipxact:configurableElementValue>
+                    <ipxact:configurableElementValue referenceId="RADDR_WIDTH">14</ipxact:configurableElementValue>
                     <ipxact:configurableElementValue referenceId="ECC_ENABLE">False</ipxact:configurableElementValue>
                     <ipxact:configurableElementValue referenceId="UNALIGNED_READ">False</ipxact:configurableElementValue>
                     <ipxact:configurableElementValue referenceId="PRESERVE_ARRAY">True</ipxact:configurableElementValue>
@@ -214,7 +214,7 @@
                 <ipxact:externalPortReference portRef="wr_data_i">
                     <ipxact:partSelect>
                         <ipxact:range>
-                            <ipxact:left>7</ipxact:left>
+                            <ipxact:left>31</ipxact:left>
                             <ipxact:right>0</ipxact:right>
                         </ipxact:range>
                     </ipxact:partSelect>
@@ -228,7 +228,7 @@
                 <ipxact:externalPortReference portRef="wr_addr_i">
                     <ipxact:partSelect>
                         <ipxact:range>
-                            <ipxact:left>15</ipxact:left>
+                            <ipxact:left>13</ipxact:left>
                             <ipxact:right>0</ipxact:right>
                         </ipxact:range>
                     </ipxact:partSelect>
@@ -242,7 +242,7 @@
                 <ipxact:externalPortReference portRef="rd_addr_i">
                     <ipxact:partSelect>
                         <ipxact:range>
-                            <ipxact:left>15</ipxact:left>
+                            <ipxact:left>13</ipxact:left>
                             <ipxact:right>0</ipxact:right>
                         </ipxact:range>
                     </ipxact:partSelect>
@@ -256,7 +256,7 @@
                 <ipxact:externalPortReference portRef="rd_data_o">
                     <ipxact:partSelect>
                         <ipxact:range>
-                            <ipxact:left>7</ipxact:left>
+                            <ipxact:left>31</ipxact:left>
                             <ipxact:right>0</ipxact:right>
                         </ipxact:range>
                     </ipxact:partSelect>
